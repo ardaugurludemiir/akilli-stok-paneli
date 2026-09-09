@@ -137,13 +137,14 @@ m3.metric(label="Sipariş Noktası (ROP)", value=f"{round(siparis_noktasi)} adet
 m4.metric(label="Tahmini Stok Ömrü", value=f"≈ {tahmini_gun:.1f} gün")
 
 # --- 8. ŞEFFAFLIK ALANI: "NASIL HESAPLANDI?" ---
+st.markdown("---")
 with st.expander("ℹ️ Nasıl hesaplandı? (Detaylı Matematiksel Döküm)"):
     st.markdown(r"""
     Bu karar, aşağıdaki operasyonel metrikler baz alınarak otomatik olarak hesaplanmıştır:
-    * **Ortalama Günlük Satış:** `{:.2f} adet/gün`
-    * **Satış Dalgalanması (Std. Sapma):** `±{:.2f}`
-    * **Tedarik Süresi:** `{} gün`
-    * **Güvenlik / Hizmet Seviyesi (Z):** `Z={}`
+    * **Ortalama Günlük Satış:** `""" + f"{ortalama_satis:.2f}" + r""" adet/gün`
+    * **Satış Dalgalanması (Std. Sapma):** `±""" + f"{standart_sapma:.2f}" + r"""`
+    * **Tedarik Süresi:** `""" + str(aktif_tedarik) + r""" gün`
+    * **Güvenlik / Hizmet Seviyesi (Z):** `Z=""" + str(hizmet_faktoru) + r"""`
     * **Emniyet Stoğu Tanımı:** Beklenmeyen satış artışları veya tedarik gecikmelerine karşı korunması gereken minimum yastık stok.
     * **Formül:** $\text{Emniyet Stoğu} = Z \times \sigma \times \sqrt{L}$
-    """.format(ortalama_satis, standart_sapma, aktif_tedarik, hizmet_faktoru))
+    """)
