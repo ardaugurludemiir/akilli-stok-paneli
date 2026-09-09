@@ -101,7 +101,6 @@ siparis_noktasi = (ortalama_satis * aktif_tedarik) + emniyet_stoku
 tahmini_gun = mevcut_stok / ortalama_satis if ortalama_satis > 0 else 999
 
 # --- 6. DURUM TESPİTİ VE RENK SİSTEMİ ---
-# Standart Etiketler: 🟢 GÜVENLİ | 🟡 DİKKAT | 🔴 KRİTİK | 🔵 FAZLA STOK
 if mevcut_stok <= siparis_noktasi:
     durum_ikon = "🔴"
     durum_metin = "KRİTİK SEVİYE"
@@ -139,12 +138,12 @@ m4.metric(label="Tahmini Stok Ömrü", value=f"≈ {tahmini_gun:.1f} gün")
 
 # --- 8. ŞEFFAFLIK ALANI: "NASIL HESAPLANDI?" ---
 with st.expander("ℹ️ Nasıl hesaplandı? (Detaylı Matematiksel Döküm)"):
-    st.markdown(f"""
+    st.markdown(r"""
     Bu karar, aşağıdaki operasyonel metrikler baz alınarak otomatik olarak hesaplanmıştır:
-    * **Ortalama Günlük Satış:** `{ortalama_satis:.2f} adet/gün`
-    * **Satış Dalgalanması (Std. Sapma):** `±{standart_sapma:.2f}`
-    * **Tedarik Süresi:** `{aktif_tedarik} gün`
-    * **Güvenlik / Hizmet Seviyesi (Z):** `%{95 if hizmet_faktoru == 1.65 else int(hizmet_faktoru*50)} (Z={hizmet_faktoru})`
+    * **Ortalama Günlük Satış:** `{:.2f} adet/gün`
+    * **Satış Dalgalanması (Std. Sapma):** `±{:.2f}`
+    * **Tedarik Süresi:** `{} gün`
+    * **Güvenlik / Hizmet Seviyesi (Z):** `Z={}`
     * **Emniyet Stoğu Tanımı:** Beklenmeyen satış artışları veya tedarik gecikmelerine karşı korunması gereken minimum yastık stok.
-    * **Formül:** $\\text{Emniyet Stoğu} = Z \\times \\sigma \\times \\sqrt{L}$
-    """)
+    * **Formül:** $\text{Emniyet Stoğu} = Z \times \sigma \times \sqrt{L}$
+    """.format(ortalama_satis, standart_sapma, aktif_tedarik, hizmet_faktoru))
