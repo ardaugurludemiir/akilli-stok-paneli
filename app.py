@@ -18,32 +18,34 @@ st.markdown("---")
 # --- 2. CANLI DÖVİZ KURU FONKSİYONU ---
 def canli_kur_getir():
     try:
-        # Ücretsiz ve API anahtarı istemeyen açık kaynaklı kur servisi
         url = "https://open.er-api.com/v6/latest/USD"
         response = requests.get(url, timeout=3)
         data = response.json()
         return data["rates"]["TRY"]
     except:
-        return 34.50  # Bağlantı koparsa güvenli varsayılan kur
+        return 34.50  
 
 # --- 3. DOSYA YÜKLEME ALANI & VERİ KALİTESİ (ANOMALİ KONTROLÜ) ---
 st.sidebar.header("📁 Veri Yönetimi")
 st.sidebar.markdown("Stok ve sevkiyat verilerinizi yükleyin.")
 yuklenen_dosya = st.sidebar.file_uploader("CSV Dosyası Yükle", type=["csv"])
 
-# Para birimi tercihi
 para_birimi = st.sidebar.radio("Para Birimi Seçimi:", ["Türk Lirası (₺)", "Amerikan Doları ($)"])
 
-# Veriyi okuma ve temizleme
+# GÜVENLİ DOSYA OKUMA (ParserError Önleyici)
 if yuklenen_dosya is not None:
-    df = pd.read_csv(yuklenen_dosya)
-    st.sidebar.success("Dosya başarıyla yüklendi!")
+    try:
+        df = pd.read_csv(yuklenen_dosya, encoding='utf-8-sig', on_bad_lines='skip')
+        st.sidebar.success("Dosya başarıyla yüklendi!")
+    except Exception as e:
+        st.error(f"Dosya okunurken hata oluştu: {e}")
+        st.stop()
 else:
     try:
-        df = pd.read_csv("musteri_verisi.csv")
+        df = pd.read_csv("musteri_verisi.csv", encoding='utf-8-sig', on_bad_lines='skip')
         st.sidebar.info("Örnek veri seti (musteri_verisi.csv) gösteriliyor.")
     except:
-        st.error("Lütfen geçerli bir CSV dosyası yükleyin.")
+        st.error("Lütfen geçerli bir CSV dosyası yükleyin veya 'musteri_verisi.csv' dosyasını oluşturun.")
         st.stop()
 
 # Eksik veya Hatalı Veri Temizleme (Data Quality Guard)
@@ -73,17 +75,14 @@ if anomali_mesajlari:
 
 st.markdown("---")
 
-# --- 4. YÖNTEM 1: CANLI OTOMATİK GÜNCELLENEN DÖVİZ & BÜTÇE PANELİ (FRAGMENT) ---
-@st.fragment(run_every=15)  # Her 15 saniyede bir sayfayı yenilemeden arka planda güncellenir
+# --- 4. CANLI OTOMATİK GÜNCELLENEN DÖVİZ & BÜTÇE PANELİ (FRAGMENT) ---
+@st.fragment(run_every=15)
 def canli_kur_ve_ozet_paneli(df_veri, secilen_pb):
     anlik_dolar = canli_kur_getir()
     
-    # Kur Gösterge Çubuğu
     col_k1, col_k2, col_k3 = st.columns(3)
     col_k1.metric(label="💱 Canlı USD/TRY Kuru", value=f"₺{anlik_dolar:.2f}", delta="Canlı Akış (15s)")
     
-    # Toplam Portföy Değeri Hesaplama
-    toplam_stok_adedi = df_veri["Mevcut_Stok"].sum()
     toplam_tl_deger = (df_veri["Mevcut_Stok"] * df_veri["Birim_Maliyet"]).sum()
     
     if secilen_pb == "Amerikan Doları ($)":
@@ -94,7 +93,6 @@ def canli_kur_ve_ozet_paneli(df_veri, secilen_pb):
         col_k2.metric(label="📦 Toplam Portföy Değeri", value=f"₺{toplam_tl_deger:,.2f}")
         col_k3.metric(label="📊 Seçili Birim", value="TRY (₺)")
 
-# Canlı paneli çağırıyoruz
 canli_kur_ve_ozet_paneli(df, para_birimi)
 st.markdown("---")
 
@@ -120,7 +118,6 @@ with tab_analiz:
     standart_sapma = secilen_veri["Satis_Miktari"].std()
     tedarik_suresi = secilen_veri["Tedarik_Suresi"].iloc[0]
     mevcut_stok = secilen_veri["Mevcut_Stok"].iloc[-1]
-    birim_maliyet_tl = secilen_veri["Birim_Maliyet"].iloc[0]
 
     if pd.isna(standart_sapma):
         standart_sapma = 0.0
@@ -257,7 +254,6 @@ with tab_butce:
         urun_butce_tl = eksik_miktar * u_maliyet_tl
         toplam_butce_ihtiyaci_tl += urun_butce_tl
 
-        # Seçilen para birimine göre dönüştür
         maliyet_gosterge = u_maliyet_tl / guncel_kur if para_birimi == "Amerikan Doları ($)" else u_maliyet_tl
         toplam_gosterge = urun_butce_tl / guncel_kur if para_birimi == "Amerikan Doları ($)" else urun_butce_tl
         simge = "$" if para_birimi == "Amerikan Doları ($)" else "₺"
