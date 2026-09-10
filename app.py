@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import requests
+import time
 
 # --- 1. SAYFA YAPILANDIRMASI VE MARKALAŞMA ---
 st.set_page_config(
@@ -10,15 +12,29 @@ st.set_page_config(
 )
 
 st.title("📦 SmartStock Enterprise")
-st.markdown("*Doğru ürünü, doğru zamanda, doğru miktarda stoklayın. Gelişmiş Karar Destek ve Optimizasyon Platformu.*")
+st.markdown("*Doğru ürünü, doğru zamanda, doğru miktarda stoklayın. Canlı Döviz ve Tedarik Optimizasyonu.*")
 st.markdown("---")
 
-# --- 2. DOSYA YÜKLEME ALANI & VERİ KALİTESİ (ANOMALİ KONTROLÜ) ---
+# --- 2. CANLI DÖVİZ KURU FONKSİYONU ---
+def canli_kur_getir():
+    try:
+        # Ücretsiz ve API anahtarı istemeyen açık kaynaklı kur servisi
+        url = "https://open.er-api.com/v6/latest/USD"
+        response = requests.get(url, timeout=3)
+        data = response.json()
+        return data["rates"]["TRY"]
+    except:
+        return 34.50  # Bağlantı koparsa güvenli varsayılan kur
+
+# --- 3. DOSYA YÜKLEME ALANI & VERİ KALİTESİ (ANOMALİ KONTROLÜ) ---
 st.sidebar.header("📁 Veri Yönetimi")
 st.sidebar.markdown("Stok ve sevkiyat verilerinizi yükleyin.")
 yuklenen_dosya = st.sidebar.file_uploader("CSV Dosyası Yükle", type=["csv"])
 
-# Veriyi okuma ve temizleme (Anomali Kontrolü)
+# Para birimi tercihi
+para_birimi = st.sidebar.radio("Para Birimi Seçimi:", ["Türk Lirası (₺)", "Amerikan Doları ($)"])
+
+# Veriyi okuma ve temizleme
 if yuklenen_dosya is not None:
     df = pd.read_csv(yuklenen_dosya)
     st.sidebar.success("Dosya başarıyla yüklendi!")
@@ -41,18 +57,15 @@ if "Birim_Maliyet" not in df.columns:
     anomali_mesajlari.append("⚠️ 'Birim_Maliyet' sütunu bulunamadı, varsayılan olarak 50.0 TL atandı.")
 
 if "Depo_Lokasyonu" not in df.columns:
-    # Çoklu depo desteği için varsayılan lokasyonlar dağıtalım
     lokasyonlar = ["Merkez Depo (İstanbul)", "Batı Depo (İzmir)", "Güney Depo (Adana)"]
     df["Depo_Lokasyonu"] = np.random.choice(lokasyonlar, size=len(df))
     anomali_mesajlari.append("ℹ️ 'Depo_Lokasyonu' sütunu otomatik oluşturuldu ve simüle edildi.")
 
-# Negatif satış veya tedarik sürelerini temizleme
 negatif_satis = (df["Satis_Miktari"] < 0).sum()
 if negatif_satis > 0:
     df = df[df["Satis_Miktari"] >= 0]
     anomali_mesajlari.append(f"🛡️ {negatif_satis} adet negatif satış kaydı tespit edildi ve veri setinden temizlendi.")
 
-# Anomali raporunu yan menüde göster
 if anomali_mesajlari:
     with st.sidebar.expander("🛡️ Veri Kalitesi Raporu"):
         for m in anomali_mesajlari:
@@ -60,7 +73,32 @@ if anomali_mesajlari:
 
 st.markdown("---")
 
-# --- 3. SEKMELİ (TABS) KURUMSAL NAVİGASYON ---
+# --- 4. YÖNTEM 1: CANLI OTOMATİK GÜNCELLENEN DÖVİZ & BÜTÇE PANELİ (FRAGMENT) ---
+@st.fragment(run_every=15)  # Her 15 saniyede bir sayfayı yenilemeden arka planda güncellenir
+def canli_kur_ve_ozet_paneli(df_veri, secilen_pb):
+    anlik_dolar = canli_kur_getir()
+    
+    # Kur Gösterge Çubuğu
+    col_k1, col_k2, col_k3 = st.columns(3)
+    col_k1.metric(label="💱 Canlı USD/TRY Kuru", value=f"₺{anlik_dolar:.2f}", delta="Canlı Akış (15s)")
+    
+    # Toplam Portföy Değeri Hesaplama
+    toplam_stok_adedi = df_veri["Mevcut_Stok"].sum()
+    toplam_tl_deger = (df_veri["Mevcut_Stok"] * df_veri["Birim_Maliyet"]).sum()
+    
+    if secilen_pb == "Amerikan Doları ($)":
+        gosterge_deger = toplam_tl_deger / anlik_dolar
+        col_k2.metric(label="📦 Toplam Portföy Değeri", value=f"${gosterge_deger:,.2f}")
+        col_k3.metric(label="📊 Seçili Birim", value="USD ($)")
+    else:
+        col_k2.metric(label="📦 Toplam Portföy Değeri", value=f"₺{toplam_tl_deger:,.2f}")
+        col_k3.metric(label="📊 Seçili Birim", value="TRY (₺)")
+
+# Canlı paneli çağırıyoruz
+canli_kur_ve_ozet_paneli(df, para_birimi)
+st.markdown("---")
+
+# --- 5. SEKMELİ (TABS) KURUMSAL NAVİGASYON ---
 tab_analiz, tab_toplu, tab_lokasyon, tab_butce, tab_senaryo = st.tabs([
     "🔍 Ürün Analizi & Yönetici Özeti", 
     "🚨 Toplu Risk Panosu", 
@@ -82,17 +120,15 @@ with tab_analiz:
     standart_sapma = secilen_veri["Satis_Miktari"].std()
     tedarik_suresi = secilen_veri["Tedarik_Suresi"].iloc[0]
     mevcut_stok = secilen_veri["Mevcut_Stok"].iloc[-1]
-    birim_maliyet = secilen_veri["Birim_Maliyet"].iloc[0]
+    birim_maliyet_tl = secilen_veri["Birim_Maliyet"].iloc[0]
 
     if pd.isna(standart_sapma):
         standart_sapma = 0.0
 
-    # Matematiksel Hesaplamalar
     emniyet_stoku = 1.65 * standart_sapma * np.sqrt(tedarik_suresi)
     siparis_noktasi = (ortalama_satis * tedarik_suresi) + emniyet_stoku
     tahmini_gun = mevcut_stok / ortalama_satis if ortalama_satis > 0 else 999
 
-    # Durum Tespiti
     if mevcut_stok <= siparis_noktasi:
         durum_ikon = "🔴"
         durum_metin = "KRİTİK SEVİYE"
@@ -117,7 +153,6 @@ with tab_analiz:
     st.subheader(f"📌 {secilen_urun} — Karar Paneli")
     kart_fonk(f"### {durum_ikon} {durum_metin}\n\n{durum_mesaj}")
 
-    # Otomatik Türkçe Yönetici Özeti (AI Executive Summary)
     st.markdown("### 🤖 Otomatik Yönetici Özeti & İçgörü")
     if mevcut_stok <= siparis_noktasi:
         yonetici_ozeti = f"**{secilen_urun}** kodlu ürün için acil müdahale gerekmektedir. Günlük ortalama {ortalama_satis:.1f} adetlik talep hızı ve {tedarik_suresi} günlük tedarik süresi göz önüne alındığında, mevcut stok {tahmini_gun:.1f} gün içinde tamamen tükecektir. Finansal risk oluşmaması adına derhal {round(siparis_noktasi - mevcut_stok + emniyet_stoku)} adetlik tedarik planı devreye alınmalıdır."
@@ -127,14 +162,12 @@ with tab_analiz:
         yonetici_ozeti = f"**{secilen_urun}** kodlu ürün operasyonel olarak sağlıklı bir dengededir. Talep dalgalanmaları kontrol altındadır ve tedarik zinciri kesintisiz çalışmaktadır."
     st.info(yonetici_ozeti)
 
-    # Metrik Kartları
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="Mevcut Stok", value=f"{int(mevcut_stok)} adet")
     m2.metric(label="Emniyet Stoğu", value=f"{round(emniyet_stoku)} adet")
     m3.metric(label="Sipariş Noktası (ROP)", value=f"{round(siparis_noktasi)} adet")
     m4.metric(label="Tahmini Stok Ömrü", value=f"≈ {tahmini_gun:.1f} gün")
 
-    # Çizgi Grafik
     st.markdown("### 📈 Satış Trendi")
     st.line_chart(secilen_veri["Satis_Miktari"], use_container_width=True)
 
@@ -185,12 +218,16 @@ with tab_lokasyon:
 
     d_urun_sayisi = depo_veri["Urun_Kodu"].nunique()
     d_toplam_stok = depo_veri["Mevcut_Stok"].sum()
-    d_toplam_deger = (depo_veri["Mevcut_Stok"] * depo_veri["Birim_Maliyet"]).sum()
+    d_toplam_deger_tl = (depo_veri["Mevcut_Stok"] * depo_veri["Birim_Maliyet"]).sum()
+    
+    guncel_kur = canli_kur_getir()
+    d_deger = d_toplam_deger_tl / guncel_kur if para_birimi == "Amerikan Doları ($)" else d_toplam_deger_tl
+    para_simge = "$" if para_birimi == "Amerikan Doları ($)" else "₺"
 
     dc1, dc2, dc3 = st.columns(3)
     dc1.metric(label="Depodaki Ürün Çeşidi", value=d_urun_sayisi)
     dc2.metric(label="Toplam Stok Adedi", value=f"{int(d_toplam_stok)} adet")
-    dc3.metric(label="Depo Envanter Değeri", value=f"₺{d_toplam_deger:,.2f}")
+    dc3.metric(label="Depo Envanter Değeri", value=f"{para_simge}{d_deger:,.2f}")
 
     st.dataframe(depo_veri[["Urun_Kodu", "Satis_Miktari", "Mevcut_Stok", "Tedarik_Suresi", "Birim_Maliyet"]], use_container_width=True)
 
@@ -198,9 +235,10 @@ with tab_lokasyon:
 # ================= TAB 4: FİNANSAL BÜTÇE PLANLAYICISI =================
 with tab_butce:
     st.header("💰 Finansal Bütçe ve Sermaye Optimizasyonu")
-    st.markdown("Kritik seviyedeki ürünleri güvenli seviyeye çıkarmak için gereken toplam bütçe ihtiyacı:")
+    st.markdown("Kritik seviyedeki ürünleri güvenli seviyeye çıkarmak için gereken toplam bütçe ihtiyacı (Canlı Döviz Entegreli):")
 
-    toplam_butce_ihtiyaci = 0
+    guncel_kur = canli_kur_getir()
+    toplam_butce_ihtiyaci_tl = 0
     butce_liste = []
 
     for u in urun_listesi:
@@ -210,27 +248,34 @@ with tab_butce:
         if pd.isna(u_sapma): u_sapma = 0.0
         u_tedarik = u_veri["Tedarik_Suresi"].iloc[0]
         u_stok = u_veri["Mevcut_Stok"].iloc[-1]
-        u_maliyet = u_veri["Birim_Maliyet"].iloc[0]
+        u_maliyet_tl = u_veri["Birim_Maliyet"].iloc[0]
 
         u_emniyet = 1.65 * u_sapma * np.sqrt(u_tedarik)
         u_rop = (u_ort * u_tedarik) + u_emniyet
 
-        # Eğer mevcut stok ROP altındaysa aradaki fark kadar sipariş maliyeti ekle
         eksik_miktar = max(0, round(u_rop - u_stok))
-        urun_butce_maliyeti = eksik_miktar * u_maliyet
-        toplam_butce_ihtiyaci += urun_butce_maliyeti
+        urun_butce_tl = eksik_miktar * u_maliyet_tl
+        toplam_butce_ihtiyaci_tl += urun_butce_tl
+
+        # Seçilen para birimine göre dönüştür
+        maliyet_gosterge = u_maliyet_tl / guncel_kur if para_birimi == "Amerikan Doları ($)" else u_maliyet_tl
+        toplam_gosterge = urun_butce_tl / guncel_kur if para_birimi == "Amerikan Doları ($)" else urun_butce_tl
+        simge = "$" if para_birimi == "Amerikan Doları ($)" else "₺"
 
         if eksik_miktar > 0:
             butce_liste.append({
                 "Ürün Kodu": u,
                 "Mevcut Stok": int(u_stok),
-                "Hedeflenen Sipariş Noktası": round(u_rop),
-                "Alınması Gereken Adet": eksik_miktar,
-                "Birim Maliyet (TL)": f"₺{u_maliyet:,.2f}",
-                "Toplam Maliyet (TL)": f"₺{urun_butce_maliyeti:,.2f}"
+                "Hedef ROP": round(u_rop),
+                "Alınacak Adet": eksik_miktar,
+                f"Birim Maliyet ({simge})": f"{simge}{maliyet_gosterge:,.2f}",
+                f"Toplam Maliyet ({simge})": f"{simge}{toplam_gosterge:,.2f}"
             })
 
-    st.metric(label="Acil Tedarik İçin Toplam Nakit İhtiyacı", value=f"₺{toplam_butce_ihtiyaci:,.2f}")
+    final_butce = toplam_butce_ihtiyaci_tl / guncel_kur if para_birimi == "Amerikan Doları ($)" else toplam_butce_ihtiyaci_tl
+    final_simge = "$" if para_birimi == "Amerikan Doları ($)" else "₺"
+
+    st.metric(label=f"Acil Tedarik İçin Toplam Nakit İhtiyacı ({para_birimi})", value=f"{final_simge}{final_butce:,.2f}")
 
     if butce_liste:
         st.subheader("📋 Tedarik Maliyet Dağılım Tablosu")
