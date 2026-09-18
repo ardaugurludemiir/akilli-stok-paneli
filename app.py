@@ -262,7 +262,7 @@ with tab_warehouse:
     wh_total_units = wh_data["Mevcut_Stok"].sum()
     wh_total_val_tl = (wh_data["Mevcut_Stok"] * wh_data["Birim_Maliyet"]).sum()
     
-    current_exchange = canli_kur_getir()
+    current_exchange = fetch_live_exchange_rate()
     wh_valuation = wh_total_val_tl / current_exchange if currency_choice == "US Dollar ($)" else wh_total_val_tl
     symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
 
@@ -275,11 +275,11 @@ with tab_warehouse:
 
 
 # ================= TAB 4: CAPITAL BUDGETING & WORKING CAPITAL =================
-with tab_butce:
+with tab_budget:
     st.header("💰 Working Capital Requirements & Procurement Budget")
     st.markdown("Total capital required to restore critical items to their optimal Reorder Points:")
 
-    current_exchange = canli_kur_getir()
+    current_exchange = fetch_live_exchange_rate()
     total_capital_tl = 0
     budget_breakdown = []
 
