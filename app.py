@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
-import time
 
 # --- 1. SAYFA YAPILANDIRMASI VE MARKALAŞMA ---
 st.set_page_config(
@@ -15,24 +14,37 @@ st.title("📦 SmartStock Enterprise")
 st.markdown("*Doğru ürünü, doğru zamanda, doğru miktarda stoklayın. Canlı Döviz ve Tedarik Optimizasyonu.*")
 st.markdown("---")
 
-# --- 2. CANLI DÖVİZ KURU FONKSİYONU ---
+# --- 2. ANLIK CANLI DÖVİZ KURU (ÖNBELLEKSİZ / FRESH) ---
 def canli_kur_getir():
     try:
         url = "https://open.er-api.com/v6/latest/USD"
         response = requests.get(url, timeout=3)
         data = response.json()
-        return data["rates"]["TRY"]
+        if "rates" in data and "TRY" in data["rates"]:
+            return float(data["rates"]["TRY"])
     except:
-        return 34.50  
+        pass
+    
+    try:
+        url_yedek = "https://api.frankfurter.app/latest?from=USD&to=TRY"
+        resp = requests.get(url_yedek, timeout=3)
+        d_yedek = resp.json()
+        return float(d_yedek["rates"]["TRY"])
+    except:
+        return 34.50  # Güvenli varsayılan kur
 
-# --- 3. DOSYA YÜKLEME ALANI & VERİ KALİTESİ (ANOMALİ KONTROLÜ) ---
+# --- 3. DOSYA YÜKLEME ALANI & VERİ KALİTESİ ---
 st.sidebar.header("📁 Veri Yönetimi")
 st.sidebar.markdown("Stok ve sevkiyat verilerinizi yükleyin.")
 yuklenen_dosya = st.sidebar.file_uploader("CSV Dosyası Yükle", type=["csv"])
 
 para_birimi = st.sidebar.radio("Para Birimi Seçimi:", ["Türk Lirası (₺)", "Amerikan Doları ($)"])
 
-# GÜVENLİ DOSYA OKUMA (ParserError Önleyici)
+# Manuel kur ve veri güncelleme butonu
+if st.sidebar.button("🔄 Kuru ve Verileri Şimdi Güncelle"):
+    st.rerun()
+
+# GÜVENLİ DOSYA OKUMA
 if yuklenen_dosya is not None:
     try:
         df = pd.read_csv(yuklenen_dosya, encoding='utf-8-sig', on_bad_lines='skip')
@@ -42,14 +54,30 @@ if yuklenen_dosya is not None:
         st.stop()
 else:
     try:
-        df = pd.read_csv("musteri_verisi.csv", encoding='utf-8-sig', on_bad_lines='skip')
-        st.sidebar.info("Örnek veri seti (musteri_verisi.csv) gösteriliyor.")
+        df = pd.read_csv("test_2.csv", encoding='utf-8-sig', on_bad_lines='skip')
+        st.sidebar.info("Örnek veri seti (test_2.csv) gösteriliyor.")
     except:
-        st.error("Lütfen geçerli bir CSV dosyası yükleyin veya 'musteri_verisi.csv' dosyasını oluşturun.")
+        st.error("Lütfen geçerli bir CSV dosyası yükleyin veya 'test_2.csv' dosyasını oluşturun.")
         st.stop()
 
-# Eksik veya Hatalı Veri Temizleme (Data Quality Guard)
+# Sütun adlarındaki olası boşlukları temizle
+df.columns = df.columns.str.strip()
+
+# Eksik veya Hatalı Sütun Kontrolleri (Data Quality Guard)
 anomali_mesajlari = []
+
+if "Urun_Kodu" not in df.columns:
+    df["Urun_Kodu"] = "URUN-001"
+    anomali_mesajlari.append("⚠️ 'Urun_Kodu' sütunu bulunamadı, varsayılan atandı.")
+
+if "Satis_Miktari" not in df.columns:
+    df["Satis_Miktari"] = 10.0
+    anomali_mesajlari.append("⚠️ 'Satis_Miktari' sütunu bulunamadı, varsayılan olarak 10 atandı.")
+
+if "Tedarik_Suresi" not in df.columns:
+    df["Tedarik_Suresi"] = 5
+    anomali_mesajlari.append("⚠️ 'Tedarik_Suresi' sütunu bulunamadı, varsayılan olarak 5 gün atandı.")
+
 if "Mevcut_Stok" not in df.columns:
     df["Mevcut_Stok"] = 100
     anomali_mesajlari.append("⚠️ 'Mevcut_Stok' sütunu bulunamadı, varsayılan olarak 100 atandı.")
@@ -75,13 +103,13 @@ if anomali_mesajlari:
 
 st.markdown("---")
 
-# --- 4. CANLI OTOMATİK GÜNCELLENEN DÖVİZ & BÜTÇE PANELİ (FRAGMENT) ---
-@st.fragment(run_every=15)
+# --- 4. CANLI OTOMATİK GÜNCELLENEN DÖVİZ & BÜTÇE PANELİ ---
+@st.fragment(run_every=10)
 def canli_kur_ve_ozet_paneli(df_veri, secilen_pb):
     anlik_dolar = canli_kur_getir()
     
     col_k1, col_k2, col_k3 = st.columns(3)
-    col_k1.metric(label="💱 Canlı USD/TRY Kuru", value=f"₺{anlik_dolar:.2f}", delta="Canlı Akış (15s)")
+    col_k1.metric(label="💱 Canlı USD/TRY Kuru", value=f"₺{anlik_dolar:.2f}", delta="Gerçek Zamanlı Akış")
     
     toplam_tl_deger = (df_veri["Mevcut_Stok"] * df_veri["Birim_Maliyet"]).sum()
     
