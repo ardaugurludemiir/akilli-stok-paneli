@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
+import io
 
 # --- 1. SAYFA YAPILANDIRMASI VE MARKALAŞMA ---
 st.set_page_config(
@@ -33,7 +34,7 @@ def canli_kur_getir():
     except:
         return 34.50  # Güvenli varsayılan kur
 
-# --- 3. DOSYA YÜKLEME ALANI & VERİ KALİTESİ ---
+# --- 3. DOSYA YÜKLEME ALANI & GÜVENLİ VERİ OKUMA ---
 st.sidebar.header("📁 Veri Yönetimi")
 st.sidebar.markdown("Stok ve sevkiyat verilerinizi yükleyin.")
 yuklenen_dosya = st.sidebar.file_uploader("CSV Dosyası Yükle", type=["csv"])
@@ -44,21 +45,40 @@ para_birimi = st.sidebar.radio("Para Birimi Seçimi:", ["Türk Lirası (₺)", "
 if st.sidebar.button("🔄 Kuru ve Verileri Şimdi Güncelle"):
     st.rerun()
 
-# GÜVENLİ DOSYA OKUMA
+# Dahili Örnek Veri Seti (Dosya yüklenmediğinde veya test_2.csv sunucuda yoksa otomatik devreye girer)
+ornek_csv_verisi = """Urun_Kodu,Satis_Miktari,Tedarik_Suresi,Mevcut_Stok,Birim_Maliyet,Depo_Lokasyonu
+LAPTOP-X1,15,5,45,18500.0,Merkez Depo (İstanbul)
+LAPTOP-X1,18,5,45,18500.0,Merkez Depo (İstanbul)
+LAPTOP-X1,22,5,45,18500.0,Merkez Depo (İstanbul)
+MONITOR-27,8,10,120,4200.0,Batı Depo (İzmir)
+MONITOR-27,2,10,120,4200.0,Batı Depo (İzmir)
+MONITOR-27,15,10,120,4200.0,Batı Depo (İzmir)
+MOUSE-WRL,45,3,30,350.0,Güney Depo (Adana)
+MOUSE-WRL,50,3,30,350.0,Güney Depo (Adana)
+SERVER-BLD,3,14,15,85000.0,Merkez Depo (İstanbul)
+SERVER-BLD,4,14,15,85000.0,Merkez Depo (İstanbul)
+KABLO-HDMI,10,2,500,75.0,Batı Depo (İzmir)
+KABLO-HDMI,12,2,500,75.0,Batı Depo (İzmir)
+KLAVYE-RGB,14,7,65,1250.0,Güney Depo (Adana)
+KLAVYE-RGB,28,7,65,1250.0,Güney Depo (Adana)
+"""
+
 if yuklenen_dosya is not None:
     try:
         df = pd.read_csv(yuklenen_dosya, encoding='utf-8-sig', on_bad_lines='skip')
-        st.sidebar.success("Dosya başarıyla yüklendi!")
+        st.sidebar.success("Özel dosyanız başarıyla yüklendi!")
     except Exception as e:
         st.error(f"Dosya okunurken hata oluştu: {e}")
         st.stop()
 else:
     try:
+        # Önce yerelde test_2.csv var mı diye bakar
         df = pd.read_csv("test_2.csv", encoding='utf-8-sig', on_bad_lines='skip')
-        st.sidebar.info("Örnek veri seti (test_2.csv) gösteriliyor.")
+        st.sidebar.info("📂 'test_2.csv' dosyası kullanılıyor.")
     except:
-        st.error("Lütfen geçerli bir CSV dosyası yükleyin veya 'test_2.csv' dosyasını oluşturun.")
-        st.stop()
+        # Eğer sunucuda test_2.csv yoksa, yukarıdaki dahili örnek veriyi okur (Asla patlamaz)
+        df = pd.read_csv(io.StringIO(ornek_csv_verisi))
+        st.sidebar.info("💡 Hazır örnek veri seti gösteriliyor (Kendi CSV'nizi yükleyebilirsiniz).")
 
 # Sütun adlarındaki olası boşlukları temizle
 df.columns = df.columns.str.strip()
@@ -336,4 +356,4 @@ with tab_senaryo:
         st.write(f"* Önerilen Sipariş Noktası: **{round(rop_b)} adet**")
         
         fark = round(rop_b - rop_a)
-        st.warning(f"💡 Tedarik süresi {tedarik_b - orijinal_tedarik} gün uzarsa, sipariş noktasını **{fark} adet** yukarı çekmeniz gerekir!")
+        st.warning(f"💡 Tedarik süresi {ted_b - orijinal_tedarik} gün uzarsa, sipariş noktasını **{fark} adet** yukarı çekmeniz gerekir!")
