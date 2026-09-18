@@ -356,4 +356,4 @@ with tab_senaryo:
         st.write(f"* Önerilen Sipariş Noktası: **{round(rop_b)} adet**")
         
         fark = round(rop_b - rop_a)
-        st.warning(f"💡 Tedarik süresi {ted_b - orijinal_tedarik} gün uzarsa, sipariş noktasını **{fark} adet** yukarı çekmeniz gerekir!")
+        st.warning(f"💡 Tedarik süresi {tedarik_b - orijinal_tedarik} gün uzarsa, sipariş noktasını **{fark} adet** yukarı çekmeniz gerekir!")
