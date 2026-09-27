@@ -34,12 +34,29 @@ def fetch_live_exchange_rate():
     except:
         return 34.50  # Fallback exchange rate
 
-# --- 3. DATA MANAGEMENT & DATA QUALITY GUARD ---
-st.sidebar.header("📁 Data Management")
-st.sidebar.markdown("Upload historical inventory & demand logs.")
+# --- 3. DATA MANAGEMENT & ADVANCED SETTINGS ---
+st.sidebar.header("📁 Data & Parameters")
+st.sidebar.markdown("Configure operational parameters.")
 uploaded_file = st.sidebar.file_uploader("Upload CSV Dataset", type=["csv"])
 
 currency_choice = st.sidebar.radio("Select Currency:", ["Turkish Lira (₺)", "US Dollar ($)"])
+
+# YENİ: Akademik Hizmet Düzeyi (Service Level) ve Z Skoru Seçimi
+service_level_choice = st.sidebar.selectbox(
+    "Target Service Level (Stockout Protection):",
+    ["90% (Z = 1.28)", "95% (Z = 1.65 - Standard)", "99% (Z = 2.33)", "99.9% (Z = 3.09)"],
+    index=1
+)
+
+# Seçilen hizmet düzeyine göre Z skorunu belirle
+if "90%" in service_level_choice:
+    z_score = 1.28
+elif "99.9%" in service_level_choice:
+    z_score = 3.09
+elif "99%" in service_level_choice:
+    z_score = 2.33
+else:
+    z_score = 1.65
 
 if st.sidebar.button("🔄 Refresh Rates & Dataset"):
     st.rerun()
@@ -140,12 +157,13 @@ def render_macro_panel(df_data, currency):
 render_macro_panel(df, currency_choice)
 st.markdown("---")
 
-# --- 5. ACADEMIC & ENTERPRISE NAVIGATION TABS ---
-tab_analysis, tab_risk, tab_warehouse, tab_budget, tab_scenario = st.tabs([
-    "🔍 Item-Level Analysis & Executive Synthesis", 
+# --- 5. ACADEMIC & ENTERPRISE NAVIGATION TABS (Genişletilmiş Sekmeler) ---
+tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = st.tabs([
+    "🔍 Item-Level Analysis", 
+    "📊 ABC Inventory Classification", 
     "🚨 Comprehensive Risk Matrix", 
-    "🏢 Multi-Echelon Warehouse Management", 
-    "💰 Capital Budgeting & Working Capital", 
+    "🏢 Multi-Echelon Warehouse", 
+    "💰 Working Capital Budget", 
     "⚖️ Stochastic Scenario Simulation"
 ])
 
@@ -166,15 +184,15 @@ with tab_analysis:
     if pd.isna(std_demand):
         std_demand = 0.0
 
-    # Stochastic Inventory Formulas (95% Service Level -> Z = 1.65)
-    safety_stock = 1.65 * std_demand * np.sqrt(lead_time)
+    # Dinamik Z Skoru ile Emniyet Stoğu ve ROP Hesaplama
+    safety_stock = z_score * std_demand * np.sqrt(lead_time)
     reorder_point = (mean_demand * lead_time) + safety_stock
     estimated_depletion_days = current_inventory / mean_demand if mean_demand > 0 else 999
 
     if current_inventory <= reorder_point:
         status_icon = "🔴"
         status_text = "CRITICAL STOCKOUT RISK"
-        status_msg = f"Inventory has fallen below the calculated Reorder Point (**{round(reorder_point)} units**). Immediate replenishment required."
+        status_msg = f"Inventory has fallen below the calculated Reorder Point (**{round(reorder_point)} units** at Z={z_score}). Immediate replenishment required."
         card_func = st.error
     elif current_inventory > (reorder_point * 2.5):
         status_icon = "🔵"
@@ -192,16 +210,16 @@ with tab_analysis:
         status_msg = "Inventory level is well above the reorder point. No immediate action required."
         card_func = st.success
 
-    st.subheader(f"📌 Decision Matrix: {selected_item}")
+    st.subheader(f"📌 Decision Matrix: {selected_item} (Service Level Z = {z_score})")
     card_func(f"### {status_icon} {status_text}\n\n{status_msg}")
 
     st.markdown("### 🤖 Automated Executive Synthesis & Operational Insights")
     if current_inventory <= reorder_point:
-        exec_summary = f"**{selected_item}** exhibits critical supply vulnerabilities. Given a mean daily demand of {mean_demand:.1f} units and a lead time of {lead_time} days, current stock will be completely depleted in {estimated_depletion_days:.1f} days. To maintain target service levels and prevent stockouts, an immediate replenishment order of **{round(reorder_point - current_inventory + safety_stock)} units** must be initiated."
+        exec_summary = f"**{selected_item}** exhibits critical supply vulnerabilities under selected service level (Z={z_score}). Given a mean daily demand of {mean_demand:.1f} units and lead time of {lead_time} days, stock depletes in {estimated_depletion_days:.1f} days. Immediate replenishment order of **{round(reorder_point - current_inventory + safety_stock)} units** is recommended."
     elif current_inventory > (reorder_point * 2.5):
-        exec_summary = f"**{selected_item}** reflects excessive capital locking due to overstocking. Current holding costs are suboptimal. It is recommended to defer subsequent procurement cycles to optimize working capital."
+        exec_summary = f"**{selected_item}** reflects excessive capital locking due to overstocking. Subsequent procurement cycles should be deferred."
     else:
-        exec_summary = f"**{selected_item}** operates within a stable stochastic equilibrium. Demand variance is controlled, and supply chain continuity is maintained."
+        exec_summary = f"**{selected_item}** operates within a stable stochastic equilibrium. Demand variance is controlled."
     st.info(exec_summary)
 
     m1, m2, m3, m4 = st.columns(4)
@@ -214,7 +232,47 @@ with tab_analysis:
     st.line_chart(item_data["Satis_Miktari"], use_container_width=True)
 
 
-# ================= TAB 2: COMPREHENSIVE RISK MATRIX =================
+# ================= TAB 2: ABC INVENTORY CLASSIFICATION (YENİ) =================
+with tab_abc:
+    st.header("📊 ABC Inventory Classification (Pareto Principle - 80/20 Rule)")
+    st.markdown("SKUs are categorized based on their annual consumption value impact to prioritize managerial attention and control.")
+
+    abc_data_list = []
+    for item in item_list:
+        sub_df = df[df["Urun_Kodu"] == item]
+        d_mean = sub_df["Satis_Miktari"].mean()
+        unit_cost = sub_df["Birim_Maliyet"].iloc[0]
+        annual_usage_value = d_mean * 365 * unit_cost  # Yıllık tüketim değeri tahmini
+        
+        abc_data_list.append({
+            "Item Code": item,
+            "Unit Cost (₺)": unit_cost,
+            "Mean Daily Demand": round(d_mean, 1),
+            "Annual Consumption Value (₺)": annual_usage_value
+        })
+
+    abc_df = pd.DataFrame(abc_data_list)
+    abc_df = abc_df.sort_values(by="Annual Consumption Value (₺)", ascending=False).reset_index(drop=True)
+    
+    # Kümülatif yüzde hesaplama (ABC Sınıflandırma Mantığı)
+    total_val = abc_df["Annual Consumption Value (₺)"].sum()
+    abc_df["Cumulative Value (%)"] = (abc_df["Annual Consumption Value (₺)"].cumsum() / total_val) * 100
+
+    def assign_abc(cum_pct):
+        if cum_pct <= 80:
+            return "Class A (High Value / Strict Control)"
+        elif cum_pct <= 95:
+            return "Class B (Moderate Value)"
+        else:
+            return "Class C (Low Value / Bulk Control)"
+
+    abc_df["ABC Category"] = abc_df["Cumulative Value (%)"].apply(assign_abc)
+    
+    st.dataframe(abc_df[["Item Code", "Unit Cost (₺)", "Mean Daily Demand", "Annual Consumption Value (₺)", "ABC Category"]], use_container_width=True)
+    st.info("💡 **Class A items** represent ~80% of total inventory value and require rigorous continuous review policies to prevent capital loss.")
+
+
+# ================= TAB 3: COMPREHENSIVE RISK MATRIX =================
 with tab_risk:
     st.header("🚨 Enterprise-Wide Risk Dashboard & Classification")
     
@@ -227,7 +285,7 @@ with tab_risk:
         lt = sub_df["Tedarik_Suresi"].iloc[0]
         stk = sub_df["Mevcut_Stok"].iloc[-1]
         
-        s_stock = 1.65 * d_std * np.sqrt(lt)
+        s_stock = z_score * d_std * np.sqrt(lt)
         rop = (d_mean * lt) + s_stock
 
         if stk <= rop:
@@ -250,7 +308,7 @@ with tab_risk:
     st.dataframe(pd.DataFrame(risk_summary_list), use_container_width=True)
 
 
-# ================= TAB 3: MULTI-ECHELON WAREHOUSE MANAGEMENT =================
+# ================= TAB 4: MULTI-ECHELON WAREHOUSE MANAGEMENT =================
 with tab_warehouse:
     st.header("🏢 Multi-Echelon Warehouse Performance")
     st.markdown("Comparative analysis of inventory distribution across regional nodes.")
@@ -264,7 +322,7 @@ with tab_warehouse:
     
     current_exchange = fetch_live_exchange_rate()
     wh_valuation = wh_total_val_tl / current_exchange if currency_choice == "US Dollar ($)" else wh_total_val_tl
-    symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
+    symbol = "\(" if currency_choice == "US Dollar (\))" else "₺"
 
     wc1, wc2, wc3 = st.columns(3)
     wc1.metric(label="Unique Stock Keeping Units (SKUs)", value=wh_item_count)
@@ -274,7 +332,7 @@ with tab_warehouse:
     st.dataframe(wh_data[["Urun_Kodu", "Satis_Miktari", "Mevcut_Stok", "Tedarik_Suresi", "Birim_Maliyet"]], use_container_width=True)
 
 
-# ================= TAB 4: CAPITAL BUDGETING & WORKING CAPITAL =================
+# ================= TAB 5: CAPITAL BUDGETING & WORKING CAPITAL =================
 with tab_budget:
     st.header("💰 Working Capital Requirements & Procurement Budget")
     st.markdown("Total capital required to restore critical items to their optimal Reorder Points:")
@@ -292,7 +350,7 @@ with tab_budget:
         stk = sub_df["Mevcut_Stok"].iloc[-1]
         unit_cost_tl = sub_df["Birim_Maliyet"].iloc[0]
 
-        s_stock = 1.65 * d_std * np.sqrt(lt)
+        s_stock = z_score * d_std * np.sqrt(lt)
         rop = (d_mean * lt) + s_stock
 
         deficit_qty = max(0, round(rop - stk))
@@ -301,7 +359,7 @@ with tab_budget:
 
         cost_display = unit_cost_tl / current_exchange if currency_choice == "US Dollar ($)" else unit_cost_tl
         total_display = item_cost_tl / current_exchange if currency_choice == "US Dollar ($)" else item_cost_tl
-        cur_symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
+        cur_symbol = "\(" if currency_choice == "US Dollar (\))" else "₺"
 
         if deficit_qty > 0:
             budget_breakdown.append({
@@ -314,7 +372,7 @@ with tab_budget:
             })
 
     final_budget = total_capital_tl / current_exchange if currency_choice == "US Dollar ($)" else total_capital_tl
-    final_symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
+    final_symbol = "\(" if currency_choice == "US Dollar (\))" else "₺"
 
     st.metric(label=f"Total Capital Outlay Required ({currency_choice})", value=f"{final_symbol}{final_budget:,.2f}")
 
@@ -325,7 +383,7 @@ with tab_budget:
         st.success("All operational SKUs maintain secure inventory levels. No immediate capital outlay required.")
 
 
-# ================= TAB 5: STOCHASTIC SCENARIO SIMULATION =================
+# ================= TAB 6: STOCHASTIC SCENARIO SIMULATION =================
 with tab_scenario:
     st.header("⚖️ Supply Chain Resilience & Lead Time Sensitivity Simulation")
     st.markdown("Evaluate the impact of supply chain disruptions (lead time extensions) on safety stock and reorder thresholds.")
@@ -341,16 +399,16 @@ with tab_scenario:
     with col_s1:
         st.subheader("📍 Scenario A (Baseline Performance)")
         lt_a = baseline_lt
-        rop_a = (s_mean * lt_a) + (1.65 * s_std * np.sqrt(lt_a))
+        rop_a = (s_mean * lt_a) + (z_score * s_std * np.sqrt(lt_a))
         st.write(f"* Lead Time: **{lt_a} days**")
         st.write(f"* Reorder Point (ROP): **{round(rop_a)} units**")
 
     with col_s2:
         st.subheader("⚠️ Scenario B (Disruption / Delay Model)")
         lt_b = st.slider("Disrupted Lead Time (Days):", int(baseline_lt), 30, int(baseline_lt) + 5)
-        rop_b = (s_mean * lt_b) + (1.65 * s_std * np.sqrt(lt_b))
+        rop_b = (s_mean * lt_b) + (z_score * s_std * np.sqrt(lt_b))
         st.write(f"* Lead Time: **{lt_b} days**")
         st.write(f"* Reorder Point (ROP): **{round(rop_b)} units**")
         
         delta_rop = round(rop_b - rop_a)
-        st.warning(f"💡 If lead time increases by {lt_b - baseline_lt} days, the Reorder Point must be adjusted upward by **{delta_rop} units** to mitigate stockout risks.")
+        st.warning(f"💡 If lead time increases by {lt_b - baseline_lt} days, the Reorder Point must be adjusted upward by **{delta_rop} units** (at Z={z_score}) to mitigate stockout risks.")
