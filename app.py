@@ -1,414 +1,388 @@
-import streamlit as st
-import pandas as pd
 import numpy as np
-import requests
-import io
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
-# --- 1. PAGE CONFIGURATION & ACADEMIC BRANDING ---
+import utils
+
+# --- 1. SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="SmartStock — Enterprise Supply Chain & Inventory Decision Support Platform",
+    page_title="SmartStock — Envanter Karar Destek Platformu",
     page_icon="📦",
-    layout="wide"
+    layout="wide",
 )
 
-st.title("📦 SmartStock Enterprise — Decision Support System")
-st.markdown("*Advanced Inventory Optimization, Stochastic Demand Modeling, and Real-Time Currency Integration.*")
+st.title("📦 SmartStock Enterprise — Karar Destek Sistemi")
+st.markdown(
+    "*Envanter Optimizasyonu, Stokastik Talep Modelleme, EOQ, Talep Tahmini "
+    "ve Gerçek Zamanlı Döviz Entegrasyonu.*"
+)
 st.markdown("---")
 
-# --- 2. REAL-TIME EXCHANGE RATE INTEGRATION ---
-def fetch_live_exchange_rate():
-    try:
-        url = "https://open.er-api.com/v6/latest/USD"
-        response = requests.get(url, timeout=3)
-        data = response.json()
-        if "rates" in data and "TRY" in data["rates"]:
-            return float(data["rates"]["TRY"])
-    except:
-        pass
-    
-    try:
-        url_backup = "https://api.frankfurter.app/latest?from=USD&to=TRY"
-        resp = requests.get(url_backup, timeout=3)
-        d_backup = resp.json()
-        return float(d_backup["rates"]["TRY"])
-    except:
-        return 34.50  # Fallback exchange rate
+# --- 2. YAN PANEL: VERİ VE PARAMETRELER ---
+st.sidebar.header("📁 Veri & Parametreler")
+st.sidebar.markdown("Operasyonel parametreleri buradan yapılandırın.")
 
-# --- 3. DATA MANAGEMENT & ADVANCED SETTINGS ---
-st.sidebar.header("📁 Data & Parameters")
-st.sidebar.markdown("Configure operational parameters.")
-uploaded_file = st.sidebar.file_uploader("Upload CSV Dataset", type=["csv"])
+uploaded_file = st.sidebar.file_uploader("CSV Veri Seti Yükle", type=["csv"])
+currency_choice = st.sidebar.radio("Para Birimi Seçin:", ["Turkish Lira (₺)", "US Dollar ($)"])
 
-currency_choice = st.sidebar.radio("Select Currency:", ["Turkish Lira (₺)", "US Dollar ($)"])
-
-# YENİ: Akademik Hizmet Düzeyi (Service Level) ve Z Skoru Seçimi
 service_level_choice = st.sidebar.selectbox(
-    "Target Service Level (Stockout Protection):",
-    ["90% (Z = 1.28)", "95% (Z = 1.65 - Standard)", "99% (Z = 2.33)", "99.9% (Z = 3.09)"],
-    index=1
+    "Hedef Hizmet Düzeyi (Stoksuz Kalma Koruması):",
+    list(utils.Z_SCORE_OPTIONS.keys()),
+    index=1,
 )
+z_score = utils.Z_SCORE_OPTIONS[service_level_choice]
 
-# Seçilen hizmet düzeyine göre Z skorunu belirle
-if "90%" in service_level_choice:
-    z_score = 1.28
-elif "99.9%" in service_level_choice:
-    z_score = 3.09
-elif "99%" in service_level_choice:
-    z_score = 2.33
-else:
-    z_score = 1.65
-
-if st.sidebar.button("🔄 Refresh Rates & Dataset"):
+if st.sidebar.button("🔄 Kurları & Veri Setini Yenile"):
+    st.cache_data.clear()
     st.rerun()
 
-# Built-in robust academic test dataset
-default_csv_data = """Urun_Kodu,Satis_Miktari,Tedarik_Suresi,Mevcut_Stok,Birim_Maliyet,Depo_Lokasyonu
-LAPTOP-X1,15,5,45,18500.0,Central Hub (Istanbul)
-LAPTOP-X1,18,5,45,18500.0,Central Hub (Istanbul)
-LAPTOP-X1,22,5,45,18500.0,Central Hub (Istanbul)
-MONITOR-27,8,10,120,4200.0,Western Hub (Izmir)
-MONITOR-27,2,10,120,4200.0,Western Hub (Izmir)
-MONITOR-27,15,10,120,4200.0,Western Hub (Izmir)
-MOUSE-WRL,45,3,30,350.0,Southern Hub (Adana)
-MOUSE-WRL,50,3,30,350.0,Southern Hub (Adana)
-SERVER-BLD,3,14,15,85000.0,Central Hub (Istanbul)
-SERVER-BLD,4,14,15,85000.0,Central Hub (Istanbul)
-KABLO-HDMI,10,2,500,75.0,Western Hub (Izmir)
-KABLO-HDMI,12,2,500,75.0,Western Hub (Izmir)
-KLAVYE-RGB,14,7,65,1250.0,Southern Hub (Adana)
-KLAVYE-RGB,28,7,65,1250.0,Southern Hub (Adana)
-"""
+# Dosya içeriğini cache-uyumlu şekilde byte olarak oku (Streamlit UploadedFile
+# doğrudan hashlenemediği için cache_data fonksiyonuna byte geçiyoruz)
+uploaded_bytes = uploaded_file.getvalue() if uploaded_file is not None else None
+uploaded_name = uploaded_file.name if uploaded_file is not None else None
+
+try:
+    df, anomaly_logs, data_source = utils.load_and_clean_data(uploaded_bytes, uploaded_name)
+except ValueError as e:
+    st.error(f"Veri yüklenirken hata oluştu: {e}")
+    st.stop()
 
 if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file, encoding='utf-8-sig', on_bad_lines='skip')
-        st.sidebar.success("Dataset successfully uploaded!")
-    except Exception as e:
-        st.error(f"Error parsing dataset: {e}")
-        st.stop()
+    st.sidebar.success("Veri seti başarıyla yüklendi!")
+elif data_source.startswith("local_file"):
+    st.sidebar.info("📂 'musteri_verisi.csv' veri seti yüklendi.")
 else:
-    try:
-        df = pd.read_csv("test_2.csv", encoding='utf-8-sig', on_bad_lines='skip')
-        st.sidebar.info("📂 'test_2.csv' dataset loaded.")
-    except:
-        df = pd.read_csv(io.StringIO(default_csv_data))
-        st.sidebar.info("💡 Standard benchmark dataset is active.")
-
-df.columns = df.columns.str.strip()
-
-# Data Quality Assurance (Anomaly Detection)
-anomaly_logs = []
-
-if "Urun_Kodu" not in df.columns:
-    df["Urun_Kodu"] = "ITEM-001"
-    anomaly_logs.append("⚠️ 'Urun_Kodu' missing. Default assigned.")
-
-if "Satis_Miktari" not in df.columns:
-    df["Satis_Miktari"] = 10.0
-    anomaly_logs.append("⚠️ 'Satis_Miktari' missing. Default value 10 set.")
-
-if "Tedarik_Suresi" not in df.columns:
-    df["Tedarik_Suresi"] = 5
-    anomaly_logs.append("⚠️ 'Tedarik_Suresi' missing. Default lead time set to 5 days.")
-
-if "Mevcut_Stok" not in df.columns:
-    df["Mevcut_Stok"] = 100
-    anomaly_logs.append("⚠️ 'Mevcut_Stok' missing. Default inventory set to 100.")
-
-if "Birim_Maliyet" not in df.columns:
-    df["Birim_Maliyet"] = 50.0
-    anomaly_logs.append("⚠️ 'Birim_Maliyet' missing. Default cost set to 50.0.")
-
-if "Depo_Lokasyonu" not in df.columns:
-    warehouses = ["Central Hub (Istanbul)", "Western Hub (Izmir)", "Southern Hub (Adana)"]
-    df["Depo_Lokasyonu"] = np.random.choice(warehouses, size=len(df))
-    anomaly_logs.append("ℹ️ 'Depo_Lokasyonu' simulated automatically.")
-
-negative_sales = (df["Satis_Miktari"] < 0).sum()
-if negative_sales > 0:
-    df = df[df["Satis_Miktari"] >= 0]
-    anomaly_logs.append(f"🛡️ Cleaned {negative_sales} anomalous negative demand records.")
+    st.sidebar.info("💡 Standart örnek (benchmark) veri seti aktif.")
 
 if anomaly_logs:
-    with st.sidebar.expander("🛡️ Data Quality & Audit Report"):
+    with st.sidebar.expander("🛡️ Veri Kalitesi & Denetim Raporu"):
         for log in anomaly_logs:
             st.write(log)
 
+item_list = sorted(df["Urun_Kodu"].unique())
+exchange_rate, rate_source = utils.fetch_live_exchange_rate()
+symbol = utils.currency_symbol(currency_choice)
+
 st.markdown("---")
 
-# --- 4. REAL-TIME MACROECONOMIC & PORTFOLIO VALUATION PANEL ---
-@st.fragment(run_every=10)
-def render_macro_panel(df_data, currency):
-    live_rate = fetch_live_exchange_rate()
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric(label="💱 Real-Time USD/TRY Rate", value=f"₺{live_rate:.2f}", delta="Live Feed (10s)")
-    
-    total_tl_valuation = (df_data["Mevcut_Stok"] * df_data["Birim_Maliyet"]).sum()
-    
-    if currency == "US Dollar ($)":
-        converted_val = total_tl_valuation / live_rate
-        col2.metric(label="📦 Total Portfolio Valuation", value=f"${converted_val:,.2f}")
-        col3.metric(label="📊 Active Denomination", value="USD ($)")
-    else:
-        col2.metric(label="📦 Total Portfolio Valuation", value=f"₺{total_tl_valuation:,.2f}")
-        col3.metric(label="📊 Active Denomination", value="TRY (₺)")
+# --- 3. ÜST KPI ÖZETİ ---
+st.subheader("📌 Genel Durum Özeti")
 
-render_macro_panel(df, currency_choice)
+risk_df_full = utils.build_risk_table(df, item_list, z_score)
+n_critical = (risk_df_full["_status_code"] == "critical").sum()
+n_warning = (risk_df_full["_status_code"] == "warning").sum()
+n_excess = (risk_df_full["_status_code"] == "excess").sum()
+n_optimal = (risk_df_full["_status_code"] == "optimal").sum()
+
+total_tl_valuation = (df["Mevcut_Stok"] * df["Birim_Maliyet"]).sum()
+total_valuation_display = utils.to_display_currency(total_tl_valuation, currency_choice, exchange_rate)
+
+kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+kpi1.metric("💱 USD/TRY Kuru", f"₺{exchange_rate:.2f}", help=f"Kaynak: {rate_source}")
+kpi2.metric("📦 Toplam Envanter Değeri", f"{symbol}{total_valuation_display:,.2f}")
+kpi3.metric("🔴 Kritik SKU", int(n_critical))
+kpi4.metric("🟡 Uyarı Seviyesinde SKU", int(n_warning))
+kpi5.metric("🔵 Fazla Stoklu SKU", int(n_excess))
+
 st.markdown("---")
 
-# --- 5. ACADEMIC & ENTERPRISE NAVIGATION TABS (Genişletilmiş Sekmeler) ---
-tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = st.tabs([
-    "🔍 Item-Level Analysis", 
-    "📊 ABC Inventory Classification", 
-    "🚨 Comprehensive Risk Matrix", 
-    "🏢 Multi-Echelon Warehouse", 
-    "💰 Working Capital Budget", 
-    "⚖️ Stochastic Scenario Simulation"
-])
+# --- 4. SEKMELER ---
+(
+    tab_analysis,
+    tab_forecast,
+    tab_eoq,
+    tab_abc,
+    tab_risk,
+    tab_warehouse,
+    tab_budget,
+    tab_scenario,
+) = st.tabs(
+    [
+        "🔍 Ürün Analizi",
+        "📈 Talep Tahmini",
+        "📐 EOQ Hesaplayıcı",
+        "📊 ABC Sınıflandırma",
+        "🚨 Risk Matrisi",
+        "🏢 Depo Yönetimi",
+        "💰 Sermaye Bütçesi",
+        "⚖️ Senaryo Simülasyonu",
+    ]
+)
 
-item_list = df["Urun_Kodu"].unique()
-
-# ================= TAB 1: ITEM ANALYSIS & EXECUTIVE SYNTHESIS =================
+# ================= TAB 1: ÜRÜN ANALİZİ =================
 with tab_analysis:
-    st.header("🔍 Granular Item Analysis & Automated Executive Summary")
-    selected_item = st.selectbox("Select Item Code for Stochastic Evaluation:", item_list, key="item_selector")
+    st.header("🔍 Detaylı Ürün Analizi & Otomatik Yönetici Özeti")
 
+    selected_item = st.selectbox("Değerlendirilecek Ürün Kodu:", item_list, key="item_selector")
     item_data = df[df["Urun_Kodu"] == selected_item]
+    stats = utils.compute_item_stats(item_data, z_score)
 
-    mean_demand = item_data["Satis_Miktari"].mean()
-    std_demand = item_data["Satis_Miktari"].std()
-    lead_time = item_data["Tedarik_Suresi"].iloc[0]
-    current_inventory = item_data["Mevcut_Stok"].iloc[-1]
+    status_code, icon, label = utils.classify_status(
+        stats["current_inventory"], stats["reorder_point"]
+    )
+    status_func = {
+        "critical": st.error,
+        "excess": st.info,
+        "warning": st.warning,
+        "optimal": st.success,
+    }[status_code]
 
-    if pd.isna(std_demand):
-        std_demand = 0.0
+    status_detail = {
+        "critical": (
+            f"Stok, hesaplanan sipariş noktasının altına düştü "
+            f"(**{round(stats['reorder_point'])} birim**, Z={z_score}). Acil ikmal gerekiyor."
+        ),
+        "excess": "Stok seviyesi operasyonel eşiklerin belirgin şekilde üzerinde. Sermaye atıl kalıyor.",
+        "warning": "Stok seviyesi sipariş noktasına yaklaşıyor. Yakın takip önerilir.",
+        "optimal": "Stok seviyesi sipariş noktasının güvenli aralığında. Acil aksiyon gerekmiyor.",
+    }[status_code]
 
-    # Dinamik Z Skoru ile Emniyet Stoğu ve ROP Hesaplama
-    safety_stock = z_score * std_demand * np.sqrt(lead_time)
-    reorder_point = (mean_demand * lead_time) + safety_stock
-    estimated_depletion_days = current_inventory / mean_demand if mean_demand > 0 else 999
+    st.subheader(f"📌 Karar Matrisi: {selected_item} (Hizmet Düzeyi Z = {z_score})")
+    status_func(f"### {icon} {label}\n\n{status_detail}")
 
-    if current_inventory <= reorder_point:
-        status_icon = "🔴"
-        status_text = "CRITICAL STOCKOUT RISK"
-        status_msg = f"Inventory has fallen below the calculated Reorder Point (**{round(reorder_point)} units** at Z={z_score}). Immediate replenishment required."
-        card_func = st.error
-    elif current_inventory > (reorder_point * 2.5):
-        status_icon = "🔵"
-        status_text = "EXCESS INVENTORY / OVERSTOCK"
-        status_msg = f"Stock level ({current_inventory} units) significantly exceeds operational thresholds. Capital immobilization detected."
-        card_func = st.info
-    elif current_inventory <= (reorder_point * 1.2):
-        status_icon = "🟡"
-        status_text = "WARNING / MONITOR CLOSELY"
-        status_msg = f"Inventory level is approaching the reorder threshold. Enhanced monitoring advised."
-        card_func = st.warning
+    st.markdown("### 🤖 Otomatik Yönetici Özeti")
+    if status_code == "critical":
+        deficit = round(stats["reorder_point"] - stats["current_inventory"] + stats["safety_stock"])
+        exec_summary = (
+            f"**{selected_item}**, seçilen hizmet düzeyinde (Z={z_score}) kritik tedarik "
+            f"riski gösteriyor. Ortalama günlük talep {stats['mean_demand']:.1f} birim, "
+            f"tedarik süresi {stats['lead_time_mean']:.1f} gün olduğunda stok "
+            f"{stats['estimated_depletion_days']:.1f} günde tükeniyor. "
+            f"Önerilen acil sipariş miktarı: **{deficit} birim**."
+        )
+    elif status_code == "excess":
+        exec_summary = (
+            f"**{selected_item}** için fazla stoklanma nedeniyle sermaye kilitlenmesi söz konusu. "
+            "Sonraki tedarik döngüleri ertelenmelidir."
+        )
     else:
-        status_icon = "🟢"
-        status_text = "OPTIMAL / SECURE"
-        status_msg = "Inventory level is well above the reorder point. No immediate action required."
-        card_func = st.success
-
-    st.subheader(f"📌 Decision Matrix: {selected_item} (Service Level Z = {z_score})")
-    card_func(f"### {status_icon} {status_text}\n\n{status_msg}")
-
-    st.markdown("### 🤖 Automated Executive Synthesis & Operational Insights")
-    if current_inventory <= reorder_point:
-        exec_summary = f"**{selected_item}** exhibits critical supply vulnerabilities under selected service level (Z={z_score}). Given a mean daily demand of {mean_demand:.1f} units and lead time of {lead_time} days, stock depletes in {estimated_depletion_days:.1f} days. Immediate replenishment order of **{round(reorder_point - current_inventory + safety_stock)} units** is recommended."
-    elif current_inventory > (reorder_point * 2.5):
-        exec_summary = f"**{selected_item}** reflects excessive capital locking due to overstocking. Subsequent procurement cycles should be deferred."
-    else:
-        exec_summary = f"**{selected_item}** operates within a stable stochastic equilibrium. Demand variance is controlled."
+        exec_summary = f"**{selected_item}** stokastik dengede çalışıyor. Talep varyansı kontrol altında."
     st.info(exec_summary)
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric(label="Current Stock Level", value=f"{int(current_inventory)} units")
-    m2.metric(label="Calculated Safety Stock", value=f"{round(safety_stock)} units")
-    m3.metric(label="Reorder Point (ROP)", value=f"{round(reorder_point)} units")
-    m4.metric(label="Estimated Stock Runway", value=f"≈ {estimated_depletion_days:.1f} days")
+    m1.metric("Mevcut Stok", f"{int(stats['current_inventory'])} birim")
+    m2.metric("Güvenlik Stoğu", f"{round(stats['safety_stock'])} birim")
+    m3.metric("Sipariş Noktası (ROP)", f"{round(stats['reorder_point'])} birim")
+    depletion_display = (
+        "∞" if np.isinf(stats["estimated_depletion_days"])
+        else f"≈ {stats['estimated_depletion_days']:.1f} gün"
+    )
+    m4.metric("Tahmini Stok Ömrü", depletion_display)
 
-    st.markdown("### 📈 Historical Demand Trend")
-    st.line_chart(item_data["Satis_Miktari"], use_container_width=True)
+    st.markdown("### 📈 Geçmiş Talep Trendi")
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            y=item_data["Satis_Miktari"].reset_index(drop=True),
+            mode="lines+markers",
+            name="Gerçekleşen Talep",
+        )
+    )
+    fig.add_hline(
+        y=stats["mean_demand"], line_dash="dot", line_color="gray",
+        annotation_text="Ortalama Talep",
+    )
+    fig.update_layout(height=350, margin=dict(l=10, r=10, t=30, b=10))
+    st.plotly_chart(fig, use_container_width=True)
 
+# ================= TAB 2: TALEP TAHMİNİ =================
+with tab_forecast:
+    st.header("📈 Talep Tahmini (Basit Üstel Düzeltme)")
+    st.markdown(
+        "Geçmiş talep verisi üzerinden üstel düzeltme (exponential smoothing) ile "
+        "kısa vadeli talep projeksiyonu üretir."
+    )
 
-# ================= TAB 2: ABC INVENTORY CLASSIFICATION (YENİ) =================
+    forecast_item = st.selectbox("Ürün Kodu:", item_list, key="forecast_selector")
+    alpha = st.slider(
+        "Düzeltme Katsayısı (α) — yüksek α yakın geçmişe daha çok ağırlık verir:",
+        0.05, 0.9, 0.3, 0.05,
+    )
+    periods_ahead = st.slider("Kaç dönem ileri tahmin edilsin?", 1, 15, 5)
+
+    f_data = df[df["Urun_Kodu"] == forecast_item]["Satis_Miktari"].reset_index(drop=True)
+    smoothed, forecast = utils.exponential_smoothing_forecast(f_data, alpha, periods_ahead)
+
+    if len(f_data) < 2:
+        st.warning("Güvenilir bir tahmin için en az 2 geçmiş gözlem gerekiyor.")
+    else:
+        history_x = list(range(len(f_data)))
+        forecast_x = list(range(len(f_data), len(f_data) + periods_ahead))
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=history_x, y=f_data, mode="lines+markers", name="Gerçekleşen"))
+        fig.add_trace(go.Scatter(x=history_x, y=smoothed, mode="lines", name="Düzeltilmiş (Smoothed)", line=dict(dash="dot")))
+        fig.add_trace(go.Scatter(x=forecast_x, y=forecast, mode="lines+markers", name="Tahmin", line=dict(dash="dash", color="orange")))
+        fig.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10), xaxis_title="Dönem", yaxis_title="Talep")
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.info(
+            f"Önümüzdeki {periods_ahead} dönem için sabit tahmin: "
+            f"**{forecast[-1]:.1f} birim/dönem**. "
+            "Not: Basit üstel düzeltme trend ve mevsimselliği yakalamaz; "
+            "güçlü trend gösteren ürünlerde Holt veya Holt-Winters yöntemleri tercih edilmelidir."
+        )
+
+# ================= TAB 3: EOQ HESAPLAYICI =================
+with tab_eoq:
+    st.header("📐 Ekonomik Sipariş Miktarı (EOQ) Hesaplayıcı")
+    st.markdown(
+        "Klasik EOQ formülü: **EOQ = √(2 × Yıllık Talep × Sipariş Maliyeti / Birim Elde Tutma Maliyeti)**"
+    )
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        order_cost = st.number_input(
+            f"Sipariş Başına Sabit Maliyet ({symbol}):", min_value=0.0, value=150.0, step=10.0
+        )
+    with col_b:
+        holding_rate_pct = st.slider(
+            "Yıllık Elde Tutma Maliyeti Oranı (birim maliyetin %'si):", 1, 50, 20
+        )
+
+    eoq_rows = []
+    for item in item_list:
+        sub = df[df["Urun_Kodu"] == item]
+        d_mean = sub["Satis_Miktari"].mean()
+        unit_cost_tl = sub["Birim_Maliyet"].iloc[0]
+        annual_demand = d_mean * 365
+        holding_cost_tl = unit_cost_tl * (holding_rate_pct / 100)
+
+        order_cost_tl = order_cost if currency_choice != "US Dollar ($)" else order_cost * exchange_rate
+        eoq_units = utils.compute_eoq(annual_demand, order_cost_tl, holding_cost_tl)
+        orders_per_year = annual_demand / eoq_units if eoq_units > 0 else 0
+
+        eoq_rows.append(
+            {
+                "Urun Kodu": item,
+                "Yillik Talep (tahmini)": round(annual_demand),
+                "Birim Elde Tutma Maliyeti (₺)": round(holding_cost_tl, 2),
+                "Onerilen EOQ (birim)": round(eoq_units),
+                "Yillik Siparis Sayisi": round(orders_per_year, 1),
+            }
+        )
+
+    st.dataframe(pd.DataFrame(eoq_rows), use_container_width=True)
+    st.caption(
+        "EOQ, sipariş verme maliyeti ile stok bulundurma maliyeti arasındaki dengeyi optimize eder. "
+        "Güvenlik stoğu hesabından bağımsızdır; ikisi birlikte kullanılmalıdır."
+    )
+
+# ================= TAB 4: ABC SINIFLANDIRMA =================
 with tab_abc:
-    st.header("📊 ABC Inventory Classification (Pareto Principle - 80/20 Rule)")
-    st.markdown("SKUs are categorized based on their annual consumption value impact to prioritize managerial attention and control.")
+    st.header("📊 ABC Envanter Sınıflandırması (Pareto 80/20 Kuralı)")
+    st.markdown(
+        "SKU'lar, yıllık tüketim değerine göre sınıflandırılır ve yönetimsel odak buna göre önceliklendirilir."
+    )
 
-    abc_data_list = []
-    for item in item_list:
-        sub_df = df[df["Urun_Kodu"] == item]
-        d_mean = sub_df["Satis_Miktari"].mean()
-        unit_cost = sub_df["Birim_Maliyet"].iloc[0]
-        annual_usage_value = d_mean * 365 * unit_cost  # Yıllık tüketim değeri tahmini
-        
-        abc_data_list.append({
-            "Item Code": item,
-            "Unit Cost (₺)": unit_cost,
-            "Mean Daily Demand": round(d_mean, 1),
-            "Annual Consumption Value (₺)": annual_usage_value
-        })
+    abc_df = utils.build_abc_table(df, item_list)
+    st.dataframe(abc_df, use_container_width=True)
 
-    abc_df = pd.DataFrame(abc_data_list)
-    abc_df = abc_df.sort_values(by="Annual Consumption Value (₺)", ascending=False).reset_index(drop=True)
-    
-    # Kümülatif yüzde hesaplama (ABC Sınıflandırma Mantığı)
-    total_val = abc_df["Annual Consumption Value (₺)"].sum()
-    abc_df["Cumulative Value (%)"] = (abc_df["Annual Consumption Value (₺)"].cumsum() / total_val) * 100
+    fig = go.Figure(
+        go.Bar(x=abc_df["Urun Kodu"], y=abc_df["Yillik Tuketim Degeri (₺)"], name="Yıllık Değer")
+    )
+    fig.update_layout(height=320, margin=dict(l=10, r=10, t=30, b=10), yaxis_title="₺")
+    st.plotly_chart(fig, use_container_width=True)
 
-    def assign_abc(cum_pct):
-        if cum_pct <= 80:
-            return "Class A (High Value / Strict Control)"
-        elif cum_pct <= 95:
-            return "Class B (Moderate Value)"
-        else:
-            return "Class C (Low Value / Bulk Control)"
+    st.info("💡 **A Sınıfı** ürünler toplam envanter değerinin ~%80'ini oluşturur ve sıkı, sürekli takip gerektirir.")
 
-    abc_df["ABC Category"] = abc_df["Cumulative Value (%)"].apply(assign_abc)
-    
-    st.dataframe(abc_df[["Item Code", "Unit Cost (₺)", "Mean Daily Demand", "Annual Consumption Value (₺)", "ABC Category"]], use_container_width=True)
-    st.info("💡 **Class A items** represent ~80% of total inventory value and require rigorous continuous review policies to prevent capital loss.")
-
-
-# ================= TAB 3: COMPREHENSIVE RISK MATRIX =================
+# ================= TAB 5: RİSK MATRİSİ =================
 with tab_risk:
-    st.header("🚨 Enterprise-Wide Risk Dashboard & Classification")
-    
-    risk_summary_list = []
-    for item in item_list:
-        sub_df = df[df["Urun_Kodu"] == item]
-        d_mean = sub_df["Satis_Miktari"].mean()
-        d_std = sub_df["Satis_Miktari"].std()
-        if pd.isna(d_std): d_std = 0.0
-        lt = sub_df["Tedarik_Suresi"].iloc[0]
-        stk = sub_df["Mevcut_Stok"].iloc[-1]
-        
-        s_stock = z_score * d_std * np.sqrt(lt)
-        rop = (d_mean * lt) + s_stock
+    st.header("🚨 Kurumsal Risk Panosu & Sınıflandırma")
+    st.markdown("Satır renkleri stok durumunu gösterir: kırmızı=kritik, sarı=uyarı, mavi=fazla stok, yeşil=optimal.")
+    styled_risk = utils.style_risk_table(risk_df_full)
+    st.dataframe(styled_risk, use_container_width=True)
 
-        if stk <= rop:
-            risk_status = "🔴 Critical"
-        elif stk > (rop * 2.5):
-            risk_status = "🔵 Excess Stock"
-        elif stk <= (rop * 1.2):
-            risk_status = "🟡 Warning"
-        else:
-            risk_status = "🟢 Secure"
-
-        risk_summary_list.append({
-            "Item Code": item,
-            "Current Stock": int(stk),
-            "Mean Daily Demand": round(d_mean, 1),
-            "Reorder Point (ROP)": round(rop),
-            "Status Classification": risk_status
-        })
-
-    st.dataframe(pd.DataFrame(risk_summary_list), use_container_width=True)
-
-
-# ================= TAB 4: MULTI-ECHELON WAREHOUSE MANAGEMENT =================
+# ================= TAB 6: DEPO YÖNETİMİ =================
 with tab_warehouse:
-    st.header("🏢 Multi-Echelon Warehouse Performance")
-    st.markdown("Comparative analysis of inventory distribution across regional nodes.")
+    st.header("🏢 Çok Katmanlı Depo Performansı")
+    st.markdown("Bölgesel depolar arasında envanter dağılımının karşılaştırmalı analizi.")
 
-    selected_warehouse = st.selectbox("Select Warehouse Facility:", df["Depo_Lokasyonu"].unique())
+    selected_warehouse = st.selectbox("Depo Seçin:", sorted(df["Depo_Lokasyonu"].unique()))
     wh_data = df[df["Depo_Lokasyonu"] == selected_warehouse]
 
     wh_item_count = wh_data["Urun_Kodu"].nunique()
     wh_total_units = wh_data["Mevcut_Stok"].sum()
     wh_total_val_tl = (wh_data["Mevcut_Stok"] * wh_data["Birim_Maliyet"]).sum()
-    
-    current_exchange = fetch_live_exchange_rate()
-    wh_valuation = wh_total_val_tl / current_exchange if currency_choice == "US Dollar ($)" else wh_total_val_tl
-    symbol = "\(" if currency_choice == "US Dollar (\))" else "₺"
+    wh_valuation = utils.to_display_currency(wh_total_val_tl, currency_choice, exchange_rate)
 
     wc1, wc2, wc3 = st.columns(3)
-    wc1.metric(label="Unique Stock Keeping Units (SKUs)", value=wh_item_count)
-    wc2.metric(label="Total Physical Stock", value=f"{int(wh_total_units)} units")
-    wc3.metric(label="Warehouse Valuation", value=f"{symbol}{wh_valuation:,.2f}")
+    wc1.metric("Benzersiz SKU Sayısı", wh_item_count)
+    wc2.metric("Toplam Fiziksel Stok", f"{int(wh_total_units)} birim")
+    wc3.metric("Depo Değerlemesi", f"{symbol}{wh_valuation:,.2f}")
 
-    st.dataframe(wh_data[["Urun_Kodu", "Satis_Miktari", "Mevcut_Stok", "Tedarik_Suresi", "Birim_Maliyet"]], use_container_width=True)
+    st.dataframe(
+        wh_data[["Urun_Kodu", "Satis_Miktari", "Mevcut_Stok", "Tedarik_Suresi", "Birim_Maliyet"]],
+        use_container_width=True,
+    )
 
-
-# ================= TAB 5: CAPITAL BUDGETING & WORKING CAPITAL =================
+# ================= TAB 7: SERMAYE BÜTÇESİ =================
 with tab_budget:
-    st.header("💰 Working Capital Requirements & Procurement Budget")
-    st.markdown("Total capital required to restore critical items to their optimal Reorder Points:")
+    st.header("💰 İşletme Sermayesi İhtiyacı & Tedarik Bütçesi")
+    st.markdown("Kritik ürünleri optimal sipariş noktasına geri getirmek için gereken toplam sermaye:")
 
-    current_exchange = fetch_live_exchange_rate()
-    total_capital_tl = 0
-    budget_breakdown = []
-
+    total_capital_tl = 0.0
+    budget_rows = []
     for item in item_list:
-        sub_df = df[df["Urun_Kodu"] == item]
-        d_mean = sub_df["Satis_Miktari"].mean()
-        d_std = sub_df["Satis_Miktari"].std()
-        if pd.isna(d_std): d_std = 0.0
-        lt = sub_df["Tedarik_Suresi"].iloc[0]
-        stk = sub_df["Mevcut_Stok"].iloc[-1]
-        unit_cost_tl = sub_df["Birim_Maliyet"].iloc[0]
-
-        s_stock = z_score * d_std * np.sqrt(lt)
-        rop = (d_mean * lt) + s_stock
-
-        deficit_qty = max(0, round(rop - stk))
-        item_cost_tl = deficit_qty * unit_cost_tl
+        sub = df[df["Urun_Kodu"] == item]
+        stats_i = utils.compute_item_stats(sub, z_score)
+        deficit_qty = max(0, round(stats_i["reorder_point"] - stats_i["current_inventory"]))
+        item_cost_tl = deficit_qty * stats_i["unit_cost"]
         total_capital_tl += item_cost_tl
 
-        cost_display = unit_cost_tl / current_exchange if currency_choice == "US Dollar ($)" else unit_cost_tl
-        total_display = item_cost_tl / current_exchange if currency_choice == "US Dollar ($)" else item_cost_tl
-        cur_symbol = "\(" if currency_choice == "US Dollar (\))" else "₺"
-
         if deficit_qty > 0:
-            budget_breakdown.append({
-                "Item Code": item,
-                "Current Stock": int(stk),
-                "Target ROP": round(rop),
-                "Replenishment Quantity": deficit_qty,
-                f"Unit Cost ({cur_symbol})": f"{cur_symbol}{cost_display:,.2f}",
-                f"Total Capital Req. ({cur_symbol})": f"{cur_symbol}{total_display:,.2f}"
-            })
+            cost_display = utils.to_display_currency(stats_i["unit_cost"], currency_choice, exchange_rate)
+            total_display = utils.to_display_currency(item_cost_tl, currency_choice, exchange_rate)
+            budget_rows.append(
+                {
+                    "Urun Kodu": item,
+                    "Mevcut Stok": int(stats_i["current_inventory"]),
+                    "Hedef ROP": round(stats_i["reorder_point"]),
+                    "Ikmal Miktari": deficit_qty,
+                    f"Birim Maliyet ({symbol})": f"{symbol}{cost_display:,.2f}",
+                    f"Toplam Sermaye ({symbol})": f"{symbol}{total_display:,.2f}",
+                }
+            )
 
-    final_budget = total_capital_tl / current_exchange if currency_choice == "US Dollar ($)" else total_capital_tl
-    final_symbol = "\(" if currency_choice == "US Dollar (\))" else "₺"
+    final_budget = utils.to_display_currency(total_capital_tl, currency_choice, exchange_rate)
+    st.metric(f"Toplam Gerekli Sermaye ({currency_choice})", f"{symbol}{final_budget:,.2f}")
 
-    st.metric(label=f"Total Capital Outlay Required ({currency_choice})", value=f"{final_symbol}{final_budget:,.2f}")
-
-    if budget_breakdown:
-        st.subheader("📋 Procurement Capital Allocation Table")
-        st.dataframe(pd.DataFrame(budget_breakdown), use_container_width=True)
+    if budget_rows:
+        st.subheader("📋 Tedarik Sermaye Dağılım Tablosu")
+        st.dataframe(pd.DataFrame(budget_rows), use_container_width=True)
     else:
-        st.success("All operational SKUs maintain secure inventory levels. No immediate capital outlay required.")
+        st.success("Tüm SKU'lar güvenli envanter seviyelerinde. Acil sermaye çıkışı gerekmiyor.")
 
-
-# ================= TAB 6: STOCHASTIC SCENARIO SIMULATION =================
+# ================= TAB 8: SENARYO SİMÜLASYONU =================
 with tab_scenario:
-    st.header("⚖️ Supply Chain Resilience & Lead Time Sensitivity Simulation")
-    st.markdown("Evaluate the impact of supply chain disruptions (lead time extensions) on safety stock and reorder thresholds.")
+    st.header("⚖️ Tedarik Zinciri Dayanıklılığı & Tedarik Süresi Duyarlılık Simülasyonu")
+    st.markdown("Tedarik zinciri aksaklıklarının (tedarik süresi uzaması) güvenlik stoğu ve sipariş noktasına etkisini değerlendirin.")
 
-    scen_item = st.selectbox("Select SKU for Scenario Testing:", item_list, key="scenario_selector")
+    scen_item = st.selectbox("Simülasyon için SKU Seçin:", item_list, key="scenario_selector")
     scen_data = df[df["Urun_Kodu"] == scen_item]
     s_mean = scen_data["Satis_Miktari"].mean()
     s_std = scen_data["Satis_Miktari"].std()
-    if pd.isna(s_std): s_std = 0.0
-    baseline_lt = scen_data["Tedarik_Suresi"].iloc[0]
+    s_std = 0.0 if pd.isna(s_std) else s_std
+    baseline_lt = scen_data["Tedarik_Suresi"].mean()
 
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        st.subheader("📍 Scenario A (Baseline Performance)")
+        st.subheader("📍 Senaryo A (Temel Performans)")
         lt_a = baseline_lt
         rop_a = (s_mean * lt_a) + (z_score * s_std * np.sqrt(lt_a))
-        st.write(f"* Lead Time: **{lt_a} days**")
-        st.write(f"* Reorder Point (ROP): **{round(rop_a)} units**")
+        st.write(f"* Tedarik Süresi: **{lt_a:.1f} gün**")
+        st.write(f"* Sipariş Noktası (ROP): **{round(rop_a)} birim**")
 
     with col_s2:
-        st.subheader("⚠️ Scenario B (Disruption / Delay Model)")
-        lt_b = st.slider("Disrupted Lead Time (Days):", int(baseline_lt), 30, int(baseline_lt) + 5)
+        st.subheader("⚠️ Senaryo B (Aksama / Gecikme Modeli)")
+        lt_b = st.slider("Aksamalı Tedarik Süresi (Gün):", int(baseline_lt), 30, int(baseline_lt) + 5)
         rop_b = (s_mean * lt_b) + (z_score * s_std * np.sqrt(lt_b))
-        st.write(f"* Lead Time: **{lt_b} days**")
-        st.write(f"* Reorder Point (ROP): **{round(rop_b)} units**")
-        
-        delta_rop = round(rop_b - rop_a)
-        st.warning(f"💡 If lead time increases by {lt_b - baseline_lt} days, the Reorder Point must be adjusted upward by **{delta_rop} units** (at Z={z_score}) to mitigate stockout risks.")
+        st.write(f"* Tedarik Süresi: **{lt_b} gün**")
+        st.write(f"* Sipariş Noktası (ROP): **{round(rop_b)} birim**")
+
+    delta_rop = round(rop_b - rop_a)
+    st.warning(
+        f"💡 Tedarik süresi {lt_b - baseline_lt:.1f} gün uzarsa, stoksuz kalma riskini azaltmak için "
+        f"sipariş noktası **{delta_rop} birim** artırılmalıdır (Z={z_score})."
+    )
