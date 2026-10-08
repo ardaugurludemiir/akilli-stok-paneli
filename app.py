@@ -58,7 +58,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 3. CUSTOM INDUSTRIAL HERO SECTION (Etiket Kaldırıldı) ---
+# --- 3. CUSTOM INDUSTRIAL HERO SECTION ---
 st.markdown(
     """
     <div class="industrial-hero">
@@ -152,7 +152,7 @@ df.columns = df.columns.str.strip()
 item_list = df["Urun_Kodu"].unique()
 
 
-# --- 6. NAVIGATION TABS (ZIGZAG / Z-PATTERN UNIQUE LAYOUTS) ---
+# --- 6. NAVIGATION TABS ---
 tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = (
     st.tabs([
         "🔍 Item-Level Analysis",
@@ -164,7 +164,7 @@ tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = (
     ])
 )
 
-# ================= TAB 1: ITEM ANALYSIS (Solda Açıklama, Sağda İnteraktif Kart) =================
+# ================= TAB 1: ITEM ANALYSIS =================
 with tab_analysis:
   col_l1, col_r1 = st.columns([1.1, 0.9], gap="large")
   with col_l1:
@@ -175,16 +175,4 @@ with tab_analysis:
     )
     st.markdown(
         '<div class="custom-section-desc">Analyze individual stock keeping'
-        " units using rigorous stochastic demand distributions and lead-time"
-        " variances. Calculate exact safety stock requirements and automated"
-        " reorder triggers.</div>",
-        unsafe_allow_html=True,
-    )
-    selected_item = st.selectbox(
-        "Select Item Code for Evaluation:", item_list, key="item_selector"
-    )
-  with col_r1:
-    with st.container(border=True):
-      st.markdown("### 📌 Live Status Preview")
-      st.error(
-          "🔴 **CRITICAL STOCKOUT
+        " units using rigorous stochastic demand
