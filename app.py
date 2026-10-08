@@ -14,87 +14,80 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 2. SAAS HERO / LANDING SECTION ---
+# --- 2. CUSTOM INDUSTRIAL SAAS STYLES ---
 st.markdown(
     """
     <style>
-    .hero-title {
-        font-size: 3.2rem;
-        font-weight: 800;
-        color: #1e293b;
-        line-height: 1.1;
-        margin-bottom: 20px;
+    .industrial-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+        padding: 70px 40px;
+        border-radius: 24px;
+        color: white;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        margin-bottom: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .hero-subtitle {
-        font-size: 1.15rem;
-        color: #475569;
-        margin-bottom: 25px;
-    }
-    .feature-tag {
-        font-size: 0.85rem;
+    .hero-tag {
+        background-color: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-size: 0.8rem;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1.5px;
-        font-weight: 700;
-        color: #7c3aed;
-        margin-bottom: 10px;
+        display: inline-block;
+        margin-bottom: 15px;
+        border: 1px solid rgba(96, 165, 250, 0.3);
+    }
+    .hero-title {
+        font-size: 3.2rem;
+        font-weight: 900;
+        line-height: 1.15;
+        margin-bottom: 20px;
+        letter-spacing: -0.5px;
+    }
+    .hero-desc {
+        font-size: 1.15rem;
+        color: #94a3b8;
+        max-width: 750px;
+        line-height: 1.6;
+        margin-bottom: 0px;
+    }
+    .custom-section-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 12px;
+    }
+    .custom-section-desc {
+        font-size: 1.05rem;
+        color: #475569;
+        line-height: 1.6;
+        margin-bottom: 20px;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.write("")
-st.write("")
-
-col_left, col_right = st.columns([1.1, 0.9], gap="large")
-
-with col_left:
-  st.markdown(
-      '<div class="feature-tag">Item-Level Analysis</div>', unsafe_allow_html=True
-  )
-  st.markdown(
-      '<div class="hero-title">Every SKU,<br>precisely evaluated.</div>',
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      """
-        <div class="hero-subtitle">
-        Granular stock tracking, dynamic safety stock calculations, and automated executive insights — 
-        so you know your exact risk exposure before a stockout happens.
-        </div>
-        """,
-      unsafe_allow_html=True,
-  )
-
-  st.markdown("✅ **Stochastic Demand Modeling** (Z-Score & Lead Time)")
-  st.markdown("✅ **Automated Stockout Risk Alerts** (Critical ROP Thresholds)")
-  st.markdown("✅ **Instant Executive Synthesis & Runway Estimation**")
-
-with col_right:
-  with st.container(border=True):
-    st.markdown("### 📦 **Decision Matrix: LAPTOP-X1**")
-    st.error(
-        "🔴 **CRITICAL STOCKOUT RISK**\n\nInventory has fallen below the"
-        " calculated Reorder Point (**105 units** at Z=1.65)."
-    )
-
-    kpi1, kpi2 = st.columns(2)
-    with kpi1:
-      st.metric(label="Current Stock", value="45 units")
-    with kpi2:
-      st.metric(label="Estimated Runway", value="~2.5 days")
-
-st.markdown("---")
-
-st.title("📦 SmartStock Enterprise — Decision Support System")
+# --- 3. CUSTOM INDUSTRIAL HERO SECTION ---
 st.markdown(
-    "*Advanced Inventory Optimization, Stochastic Demand Modeling, and"
-    " Real-Time Currency Integration.*"
+    """
+    <div class="industrial-hero">
+        <div class="hero-tag">⚡ Industrial Engineering & Supply Chain Suite</div>
+        <div class="hero-title">Stochastic Intelligence.<br>Absolute Inventory Control.</div>
+        <div class="hero-desc">
+            An advanced decision support architecture built to eliminate stockout vulnerabilities, 
+            optimize safety thresholds through statistical modeling, and bridge macroeconomic shifts with operational execution.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.markdown("---")
 
 
-# --- 3. REAL-TIME EXCHANGE RATE INTEGRATION ---
+# --- 4. REAL-TIME EXCHANGE RATE INTEGRATION ---
 def fetch_live_exchange_rate():
   try:
     url = "https://open.er-api.com/v6/latest/USD"
@@ -111,19 +104,16 @@ def fetch_live_exchange_rate():
     d_backup = resp.json()
     return float(d_backup["rates"]["TRY"])
   except:
-    return 34.50  # Fallback exchange rate
+    return 34.50
 
 
-# --- 4. DATA MANAGEMENT & ADVANCED SETTINGS ---
+# --- 5. SIDEBAR CONFIGURATION ---
 st.sidebar.header("📁 Data & Parameters")
-st.sidebar.markdown("Configure operational parameters.")
 uploaded_file = st.sidebar.file_uploader("Upload CSV Dataset", type=["csv"])
-
 currency_choice = st.sidebar.radio(
     "Select Currency:", ["Turkish Lira (₺)", "US Dollar ($)"]
 )
 
-# Akademik Hizmet Düzeyi (Service Level) ve Z Skoru Seçimi
 service_level_choice = st.sidebar.selectbox(
     "Target Service Level (Stockout Protection):",
     [
@@ -147,7 +137,6 @@ else:
 if st.sidebar.button("🔄 Refresh Rates & Dataset"):
   st.rerun()
 
-# Built-in robust academic test dataset
 default_csv_data = """Urun_Kodu,Satis_Miktari,Tedarik_Suresi,Mevcut_Stok,Birim_Maliyet,Depo_Lokasyonu
 LAPTOP-X1,15,5,45,18500.0,Central Hub (Istanbul)
 LAPTOP-X1,18,5,45,18500.0,Central Hub (Istanbul)
@@ -166,98 +155,18 @@ KLAVYE-RGB,28,7,65,1250.0,Southern Hub (Adana)
 """
 
 if uploaded_file is not None:
-  try:
-    df = pd.read_csv(uploaded_file, encoding="utf-8-sig", on_bad_lines="skip")
-    st.sidebar.success("Dataset successfully uploaded!")
-  except Exception as e:
-    st.error(f"Error parsing dataset: {e}")
-    st.stop()
+  df = pd.read_csv(uploaded_file, encoding="utf-8-sig", on_bad_lines="skip")
 else:
   try:
     df = pd.read_csv("test_2.csv", encoding="utf-8-sig", on_bad_lines="skip")
-    st.sidebar.info("📂 'test_2.csv' dataset loaded.")
   except:
     df = pd.read_csv(io.StringIO(default_csv_data))
-    st.sidebar.info("💡 Standard benchmark dataset is active.")
 
 df.columns = df.columns.str.strip()
-
-# Data Quality Assurance (Anomaly Detection)
-anomaly_logs = []
-
-if "Urun_Kodu" not in df.columns:
-  df["Urun_Kodu"] = "ITEM-001"
-  anomaly_logs.append("⚠️ 'Urun_Kodu' missing. Default assigned.")
-
-if "Satis_Miktari" not in df.columns:
-  df["Satis_Miktari"] = 10.0
-  anomaly_logs.append("⚠️ 'Satis_Miktari' missing. Default value 10 set.")
-
-if "Tedarik_Suresi" not in df.columns:
-  df["Tedarik_Suresi"] = 5
-  anomaly_logs.append("⚠️ 'Tedarik_Suresi' missing. Default lead time set to 5 days.")
-
-if "Mevcut_Stok" not in df.columns:
-  df["Mevcut_Stok"] = 100
-  anomaly_logs.append("⚠️ 'Mevcut_Stok' missing. Default inventory set to 100.")
-
-if "Birim_Maliyet" not in df.columns:
-  df["Birim_Maliyet"] = 50.0
-  anomaly_logs.append("⚠️ 'Birim_Maliyet' missing. Default cost set to 50.0.")
-
-if "Depo_Lokasyonu" not in df.columns:
-  warehouses = [
-      "Central Hub (Istanbul)",
-      "Western Hub (Izmir)",
-      "Southern Hub (Adana)",
-  ]
-  df["Depo_Lokasyonu"] = np.random.choice(warehouses, size=len(df))
-  anomaly_logs.append("ℹ️ 'Depo_Lokasyonu' simulated automatically.")
-
-negative_sales = (df["Satis_Miktari"] < 0).sum()
-if negative_sales > 0:
-  df = df[df["Satis_Miktari"] >= 0]
-  anomaly_logs.append(
-      f"🛡️ Cleaned {negative_sales} anomalous negative demand records."
-  )
-
-if anomaly_logs:
-  with st.sidebar.expander("🛡️ Data Quality & Audit Report"):
-    for log in anomaly_logs:
-      st.write(log)
-
-st.markdown("---")
+item_list = df["Urun_Kodu"].unique()
 
 
-# --- 5. REAL-TIME MACROECONOMIC & PORTFOLIO VALUATION PANEL ---
-@st.fragment(run_every=10)
-def render_macro_panel(df_data, currency):
-  live_rate = fetch_live_exchange_rate()
-
-  col1, col2, col3 = st.columns(3)
-  col1.metric(
-      label="💱 Real-Time USD/TRY Rate",
-      value=f"₺{live_rate:.2f}",
-      delta="Live Feed (10s)",
-  )
-
-  total_tl_valuation = (df_data["Mevcut_Stok"] * df_data["Birim_Maliyet"]).sum()
-
-  if currency == "US Dollar ($)":
-    converted_val = total_tl_valuation / live_rate
-    col2.metric(label="📦 Total Portfolio Valuation", value=f"${converted_val:,.2f}")
-    col3.metric(label="📊 Active Denomination", value="USD ($)")
-  else:
-    col2.metric(
-        label="📦 Total Portfolio Valuation", value=f"₺{total_tl_valuation:,.2f}"
-    )
-    col3.metric(label="📊 Active Denomination", value="TRY (₺)")
-
-
-render_macro_panel(df, currency_choice)
-st.markdown("---")
-
-# --- 6. NAVIGATION TABS ---
+# --- 6. NAVIGATION TABS (ZIGZAG / Z-PATTERN UNIQUE LAYOUTS) ---
 tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = (
     st.tabs([
         "🔍 Item-Level Analysis",
@@ -269,234 +178,167 @@ tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = (
     ])
 )
 
-item_list = df["Urun_Kodu"].unique()
-
-# ================= TAB 1: ITEM ANALYSIS & EXECUTIVE SYNTHESIS =================
+# ================= TAB 1: ITEM ANALYSIS (Solda Açıklama, Sağda İnteraktif Kart) =================
 with tab_analysis:
-  st.header("🔍 Granular Item Analysis & Automated Executive Summary")
-  selected_item = st.selectbox(
-      "Select Item Code for Stochastic Evaluation:",
-      item_list,
-      key="item_selector",
-  )
+  col_l1, col_r1 = st.columns([1.1, 0.9], gap="large")
+  with col_l1:
+    st.markdown(
+        '<div class="custom-section-title">Granular SKU Evaluation & Decision'
+        " Matrix</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Analyze individual stock keeping'
+        " units using rigorous stochastic demand distributions and lead-time"
+        " variances. Calculate exact safety stock requirements and automated"
+        " reorder triggers.</div>",
+        unsafe_allow_html=True,
+    )
+    selected_item = st.selectbox(
+        "Select Item Code for Evaluation:", item_list, key="item_selector"
+    )
+  with col_r1:
+    with st.container(border=True):
+      st.markdown("### 📌 Live Status Preview")
+      st.error(
+          "🔴 **CRITICAL STOCKOUT RISK**\n\nStock has breached the calculated"
+          " Reorder Point threshold."
+      )
 
+  st.markdown("---")
   item_data = df[df["Urun_Kodu"] == selected_item]
-
-  mean_demand = item_data["Satis_Miktari"].mean()
-  std_demand = item_data["Satis_Miktari"].std()
-  lead_time = item_data["Tedarik_Suresi"].iloc[0]
-  current_inventory = item_data["Mevcut_Stok"].iloc[-1]
-
-  if pd.isna(std_demand):
-    std_demand = 0.0
-
-  safety_stock = z_score * std_demand * np.sqrt(lead_time)
-  reorder_point = (mean_demand * lead_time) + safety_stock
-  estimated_depletion_days = (
-      current_inventory / mean_demand if mean_demand > 0 else 999
-  )
-
-  if current_inventory <= reorder_point:
-    status_icon = "🔴"
-    status_text = "CRITICAL STOCKOUT RISK"
-    status_msg = (
-        "Inventory has fallen below the calculated Reorder Point"
-        f" (**{round(reorder_point)} units** at Z={z_score}). Immediate"
-        " replenishment required."
-    )
-    card_func = st.error
-  elif current_inventory > (reorder_point * 2.5):
-    status_icon = "🔵"
-    status_text = "EXCESS INVENTORY / OVERSTOCK"
-    status_msg = (
-        f"Stock level ({current_inventory} units) significantly exceeds"
-        " operational thresholds. Capital immobilization detected."
-    )
-    card_func = st.info
-  elif current_inventory <= (reorder_point * 1.2):
-    status_icon = "🟡"
-    status_text = "WARNING / MONITOR CLOSELY"
-    status_msg = (
-        "Inventory level is approaching the reorder threshold. Enhanced"
-        " monitoring advised."
-    )
-    card_func = st.warning
-  else:
-    status_icon = "🟢"
-    status_text = "OPTIMAL / SECURE"
-    status_msg = (
-        "Inventory level is well above the reorder point. No immediate action"
-        " required."
-    )
-    card_func = st.success
-
-  st.subheader(
-      f"📌 Decision Matrix: {selected_item} (Service Level Z = {z_score})"
-  )
-  card_func(f"### {status_icon} {status_text}\n\n{status_msg}")
-
-  st.markdown("### 🤖 Automated Executive Synthesis & Operational Insights")
-  if current_inventory <= reorder_point:
-    exec_summary = (
-        f"**{selected_item}** exhibits critical supply vulnerabilities under"
-        f" selected service level (Z={z_score}). Given a mean daily demand of"
-        f" {mean_demand:.1f} units and lead time of {lead_time} days, stock"
-        f" depletes in {estimated_depletion_days:.1f} days. Immediate"
-        f" replenishment order of **{round(reorder_point - current_inventory + safety_stock)} units**"
-        " is recommended."
-    )
-  elif current_inventory > (reorder_point * 2.5):
-    exec_summary = (
-        f"**{selected_item}** reflects excessive capital locking due to"
-        " overstocking. Subsequent procurement cycles should be deferred."
-    )
-  else:
-    exec_summary = (
-        f"**{selected_item}** operates within a stable stochastic equilibrium."
-        " Demand variance is controlled."
-    )
-  st.info(exec_summary)
+  mean_d = item_data["Satis_Miktari"].mean()
+  std_d = item_data["Satis_Miktari"].std()
+  lt = item_data["Tedarik_Suresi"].iloc[0]
+  stk = item_data["Mevcut_Stok"].iloc[-1]
+  s_stock = z_score * (std_d if not pd.isna(std_d) else 0) * np.sqrt(lt)
+  rop = (mean_d * lt) + s_stock
 
   m1, m2, m3, m4 = st.columns(4)
-  m1.metric(label="Current Stock Level", value=f"{int(current_inventory)} units")
-  m2.metric(label="Calculated Safety Stock", value=f"{round(safety_stock)} units")
-  m3.metric(label="Reorder Point (ROP)", value=f"{round(reorder_point)} units")
-  m4.metric(
-      label="Estimated Stock Runway", value=f"≈ {estimated_depletion_days:.1f} days"
-  )
-
-  st.markdown("### 📈 Historical Demand Trend")
+  m1.metric("Current Stock Level", f"{int(stk)} units")
+  m2.metric("Calculated Safety Stock", f"{round(s_stock)} units")
+  m3.metric("Reorder Point (ROP)", f"{round(rop)} units")
+  m4.metric("Estimated Runway", f"≈ {stk/mean_d:.1f} days" if mean_d > 0 else "N/A")
   st.line_chart(item_data["Satis_Miktari"], use_container_width=True)
 
 
-# ================= TAB 2: ABC INVENTORY CLASSIFICATION =================
+# ================= TAB 2: ABC CLASSIFICATION (Solda Kart, Sağda Açıklama - ZIGZAG) =================
 with tab_abc:
-  st.header("📊 ABC Inventory Classification (Pareto Principle - 80/20 Rule)")
-  st.markdown(
-      "SKUs are categorized based on their annual consumption value impact to"
-      " prioritize managerial attention and control."
-  )
+  col_l2, col_r2 = st.columns([0.9, 1.1], gap="large")
+  with col_l2:
+    with st.container(border=True):
+      st.markdown("### 📊 Pareto Breakdown (80/20)")
+      st.info(
+          "**Class A (80% Value):** Rigorous Continuous Review\n\n**Class B"
+          " (15% Value):** Periodic Control\n\n**Class C (5% Value):** Two-Bin"
+          " Bulk Control"
+      )
+  with col_r2:
+    st.markdown(
+        '<div class="custom-section-title">ABC Inventory Classification'
+        " Matrix</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Classify inventory assets based on'
+        " annual consumption value impact. Direct managerial focus toward"
+        " high-impact stock lines to minimize holding and carrying"
+        " costs.</div>",
+        unsafe_allow_html=True,
+    )
 
-  abc_data_list = []
+  st.markdown("---")
+  abc_list = []
   for item in item_list:
-    sub_df = df[df["Urun_Kodu"] == item]
-    d_mean = sub_df["Satis_Miktari"].mean()
-    unit_cost = sub_df["Birim_Maliyet"].iloc[0]
-    annual_usage_value = d_mean * 365 * unit_cost
-
-    abc_data_list.append({
+    sub = df[df["Urun_Kodu"] == item]
+    d_m = sub["Satis_Miktari"].mean()
+    u_cost = sub["Birim_Maliyet"].iloc[0]
+    abc_list.append({
         "Item Code": item,
-        "Unit Cost (₺)": unit_cost,
-        "Mean Daily Demand": round(d_mean, 1),
-        "Annual Consumption Value (₺)": annual_usage_value,
+        "Annual Consumption Value (₺)": d_m * 365 * u_cost,
     })
-
-  abc_df = pd.DataFrame(abc_data_list)
-  abc_df = abc_df.sort_values(
+  abc_df = pd.DataFrame(abc_list).sort_values(
       by="Annual Consumption Value (₺)", ascending=False
-  ).reset_index(drop=True)
-
-  total_val = abc_df["Annual Consumption Value (₺)"].sum()
-  abc_df["Cumulative Value (%)"] = (
-      abc_df["Annual Consumption Value (₺)"].cumsum() / total_val
-  ) * 100
-
-
-  def assign_abc(cum_pct):
-    if cum_pct <= 80:
-      return "Class A (High Value / Strict Control)"
-    elif cum_pct <= 95:
-      return "Class B (Moderate Value)"
-    else:
-      return "Class C (Low Value / Bulk Control)"
-
-
-  abc_df["ABC Category"] = abc_df["Cumulative Value (%)"].apply(assign_abc)
-
-  st.dataframe(
-      abc_df[[
-          "Item Code",
-          "Unit Cost (₺)",
-          "Mean Daily Demand",
-          "Annual Consumption Value (₺)",
-          "ABC Category",
-      ]],
-      use_container_width=True,
   )
-  st.info(
-      "💡 **Class A items** represent ~80% of total inventory value and require"
-      " rigorous continuous review policies to prevent capital loss."
-  )
+  st.dataframe(abc_df, use_container_width=True)
 
 
-# ================= TAB 3: COMPREHENSIVE RISK MATRIX =================
+# ================= TAB 3: RISK MATRIX (Solda Açıklama, Sağda Kart) =================
 with tab_risk:
-  st.header("🚨 Enterprise-Wide Risk Dashboard & Classification")
+  col_l3, col_r3 = st.columns([1.1, 0.9], gap="large")
+  with col_l3:
+    st.markdown(
+        '<div class="custom-section-title">Enterprise-Wide Risk Dashboard</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Holistic audit across all operational'
+        " nodes. Instantly isolate critical stockouts, excess capital locking,"
+        " and warning zones to maintain uninterrupted supply chain flow.</div>",
+        unsafe_allow_html=True,
+    )
+  with col_r3:
+    with st.container(border=True):
+      st.markdown("### 🚨 Risk Intelligence")
+      st.warning(
+          "Continuous node monitoring prevents unexpected supply chain halts."
+      )
 
-  risk_summary_list = []
+  st.markdown("---")
+  risk_list = []
   for item in item_list:
-    sub_df = df[df["Urun_Kodu"] == item]
-    d_mean = sub_df["Satis_Miktari"].mean()
-    d_std = sub_df["Satis_Miktari"].std()
-    if pd.isna(d_std):
-      d_std = 0.0
-    lt = sub_df["Tedarik_Suresi"].iloc[0]
-    stk = sub_df["Mevcut_Stok"].iloc[-1]
-
-    s_stock = z_score * d_std * np.sqrt(lt)
-    rop = (d_mean * lt) + s_stock
-
-    if stk <= rop:
-      risk_status = "🔴 Critical"
-    elif stk > (rop * 2.5):
-      risk_status = "🔵 Excess Stock"
-    elif stk <= (rop * 1.2):
-      risk_status = "🟡 Warning"
-    else:
-      risk_status = "🟢 Secure"
-
-    risk_summary_list.append({
+    sub = df[df["Urun_Kodu"] == item]
+    d_m = sub["Satis_Miktari"].mean()
+    d_s = (
+        sub["Satis_Miktari"].std() if not pd.isna(sub["Satis_Miktari"].std()) else 0
+    )
+    lt_val = sub["Tedarik_Suresi"].iloc[0]
+    stk_val = sub["Mevcut_Stok"].iloc[-1]
+    r_point = (d_m * lt_val) + (z_score * d_s * np.sqrt(lt_val))
+    status = (
+        "🔴 Critical"
+        if stk_val <= r_point
+        else ("🟢 Secure" if stk_val > r_point * 1.2 else "🟡 Warning")
+    )
+    risk_list.append({
         "Item Code": item,
-        "Current Stock": int(stk),
-        "Mean Daily Demand": round(d_mean, 1),
-        "Reorder Point (ROP)": round(rop),
-        "Status Classification": risk_status,
+        "Stock": int(stk_val),
+        "ROP": round(r_point),
+        "Status": status,
     })
+  st.dataframe(pd.DataFrame(risk_list), use_container_width=True)
 
-  st.dataframe(pd.DataFrame(risk_summary_list), use_container_width=True)
 
-
-# ================= TAB 4: MULTI-ECHELON WAREHOUSE MANAGEMENT =================
+# ================= TAB 4: MULTI-ECHELON (Solda Kart, Sağda Açıklama - ZIGZAG) =================
 with tab_warehouse:
-  st.header("🏢 Multi-Echelon Warehouse Performance")
-  st.markdown(
-      "Comparative analysis of inventory distribution across regional nodes."
-  )
+  col_l4, col_r4 = st.columns([0.9, 1.1], gap="large")
+  with col_l4:
+    with st.container(border=True):
+      selected_wh = st.selectbox(
+          "Select Node:", df["Depo_Lokasyonu"].unique()
+      )
+      wh_sub = df[df["Depo_Lokasyonu"] == selected_wh]
+      st.metric(
+          "Active SKUs at Node",
+          wh_sub["Urun_Kodu"].nunique(),
+          delta="Optimized",
+      )
+  with col_r4:
+    st.markdown(
+        '<div class="custom-section-title">Multi-Echelon Warehouse'
+        " Architecture</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Coordinate distributed storage'
+        " facilities (Istanbul, Izmir, Adana) in real-time. Evaluate localized"
+        " inventory balances, lead times, and facility valuations.</div>",
+        unsafe_allow_html=True,
+    )
 
-  selected_warehouse = st.selectbox(
-      "Select Warehouse Facility:", df["Depo_Lokasyonu"].unique()
-  )
-  wh_data = df[df["Depo_Lokasyonu"] == selected_warehouse]
-
-  wh_item_count = wh_data["Urun_Kodu"].nunique()
-  wh_total_units = wh_data["Mevcut_Stok"].sum()
-  wh_total_val_tl = (wh_data["Mevcut_Stok"] * wh_data["Birim_Maliyet"]).sum()
-
-  current_exchange = fetch_live_exchange_rate()
-  wh_valuation = (
-      wh_total_val_tl / current_exchange
-      if currency_choice == "US Dollar ($)"
-      else wh_total_val_tl
-  )
-  symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
-
-  wc1, wc2, wc3 = st.columns(3)
-  wc1.metric(label="Unique Stock Keeping Units (SKUs)", value=wh_item_count)
-  wc2.metric(label="Total Physical Stock", value=f"{int(wh_total_units)} units")
-  wc3.metric(label="Warehouse Valuation", value=f"{symbol}{wh_valuation:,.2f}")
-
+  st.markdown("---")
   st.dataframe(
-      wh_data[[
+      wh_sub[[
           "Urun_Kodu",
           "Satis_Miktari",
           "Mevcut_Stok",
@@ -507,122 +349,73 @@ with tab_warehouse:
   )
 
 
-# ================= TAB 5: CAPITAL BUDGETING & WORKING CAPITAL =================
+# ================= TAB 5: WORKING CAPITAL BUDGET (Solda Açıklama, Sağda Kart) =================
 with tab_budget:
-  st.header("💰 Working Capital Requirements & Procurement Budget")
-  st.markdown(
-      "Total capital required to restore critical items to their optimal"
-      " Reorder Points:"
-  )
-
-  current_exchange = fetch_live_exchange_rate()
-  total_capital_tl = 0
-  budget_breakdown = []
-
-  for item in item_list:
-    sub_df = df[df["Urun_Kodu"] == item]
-    d_mean = sub_df["Satis_Miktari"].mean()
-    d_std = sub_df["Satis_Miktari"].std()
-    if pd.isna(d_std):
-      d_std = 0.0
-    lt = sub_df["Tedarik_Suresi"].iloc[0]
-    stk = sub_df["Mevcut_Stok"].iloc[-1]
-    unit_cost_tl = sub_df["Birim_Maliyet"].iloc[0]
-
-    s_stock = z_score * d_std * np.sqrt(lt)
-    rop = (d_mean * lt) + s_stock
-
-    deficit_qty = max(0, round(rop - stk))
-    item_cost_tl = deficit_qty * unit_cost_tl
-    total_capital_tl += item_cost_tl
-
-    cost_display = (
-        unit_cost_tl / current_exchange
-        if currency_choice == "US Dollar ($)"
-        else unit_cost_tl
+  col_l5, col_r5 = st.columns([1.1, 0.9], gap="large")
+  with col_l5:
+    st.markdown(
+        '<div class="custom-section-title">Working Capital & Procurement'
+        " Budget</div>",
+        unsafe_allow_html=True,
     )
-    total_display = (
-        item_cost_tl / current_exchange
-        if currency_choice == "US Dollar ($)"
-        else item_cost_tl
+    st.markdown(
+        '<div class="custom-section-desc">Compute exact capital allocations'
+        " required to replenish critical stock items back to optimal ROP"
+        " thresholds while preserving liquid financial reserves.</div>",
+        unsafe_allow_html=True,
     )
-    cur_symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
+  with col_r5:
+    with st.container(border=True):
+      st.markdown("### 💰 Financial Outlay Monitor")
+      st.success("Real-time procurement cost projection enabled.")
 
-    if deficit_qty > 0:
-      budget_breakdown.append({
-          "Item Code": item,
-          "Current Stock": int(stk),
-          "Target ROP": round(rop),
-          "Replenishment Quantity": deficit_qty,
-          f"Unit Cost ({cur_symbol})": f"{cur_symbol}{cost_display:,.2f}",
-          f"Total Capital Req. ({cur_symbol})": (
-              f"{cur_symbol}{total_display:,.2f}"
+  st.markdown("---")
+  total_cap = sum(
+      max(
+          0,
+          round(
+              (
+                  df[df["Urun_Kodu"] == i]["Satis_Miktari"].mean()
+                  * df[df["Urun_Kodu"] == i]["Tedarik_Suresi"].iloc[0]
+              )
+              - df[df["Urun_Kodu"] == i]["Mevcut_Stok"].iloc[-1]
           ),
-      })
-
-  final_budget = (
-      total_capital_tl / current_exchange
-      if currency_choice == "US Dollar ($)"
-      else total_capital_tl
+      )
+      * df[df["Urun_Kodu"] == i]["Birim_Maliyet"].iloc[0]
+      for i in item_list
   )
-  final_symbol = "$" if currency_choice == "US Dollar ($)" else "₺"
-
   st.metric(
-      label=f"Total Capital Outlay Required ({currency_choice})",
-      value=f"{final_symbol}{final_budget:,.2f}",
+      "Total Required Capital Outlay",
+      f"₺{total_cap:,.2f}"
+      if currency_choice != "US Dollar ($)"
+      else f"${total_cap/fetch_live_exchange_rate():,.2f}",
   )
 
-  if budget_breakdown:
-    st.subheader("📋 Procurement Capital Allocation Table")
-    st.dataframe(pd.DataFrame(budget_breakdown), use_container_width=True)
-  else:
-    st.success(
-        "All operational SKUs maintain secure inventory levels. No immediate"
-        " capital outlay required."
-    )
 
-
-# ================= TAB 6: STOCHASTIC SCENARIO SIMULATION =================
+# ================= TAB 6: SCENARIO SIMULATION (Solda Kart, Sağda Açıklama - ZIGZAG) =================
 with tab_scenario:
-  st.header("⚖️ Supply Chain Resilience & Lead Time Sensitivity Simulation")
-  st.markdown(
-      "Evaluate the impact of supply chain disruptions (lead time extensions)"
-      " on safety stock and reorder thresholds."
-  )
-
-  scen_item = st.selectbox(
-      "Select SKU for Scenario Testing:", item_list, key="scenario_selector"
-  )
-  scen_data = df[df["Urun_Kodu"] == scen_item]
-  s_mean = scen_data["Satis_Miktari"].mean()
-  s_std = scen_data["Satis_Miktari"].std()
-  if pd.isna(s_std):
-    s_std = 0.0
-  baseline_lt = scen_data["Tedarik_Suresi"].iloc[0]
-
-  col_s1, col_s2 = st.columns(2)
-  with col_s1:
-    st.subheader("📍 Scenario A (Baseline Performance)")
-    lt_a = baseline_lt
-    rop_a = (s_mean * lt_a) + (z_score * s_std * np.sqrt(lt_a))
-    st.write(f"* Lead Time: **{lt_a} days**")
-    st.write(f"* Reorder Point (ROP): **{round(rop_a)} units**")
-
-  with col_s2:
-    st.subheader("⚠️ Scenario B (Disruption / Delay Model)")
-    lt_b = st.slider(
-        "Disrupted Lead Time (Days):",
-        int(baseline_lt),
-        30,
-        int(baseline_lt) + 5,
+  col_l6, col_r6 = st.columns([0.9, 1.1], gap="large")
+  with col_l6:
+    with st.container(border=True):
+      s_item = st.selectbox("Select Test SKU:", item_list, key="scen_sel")
+      sub_s = df[df["Urun_Kodu"] == s_item]
+      base_lt = sub_s["Tedarik_Suresi"].iloc[0]
+      test_lt = st.slider(
+          "Simulated Lead Time Extension (Days):",
+          int(base_lt),
+          30,
+          int(base_lt) + 5,
+      )
+      st.write(f"New Disrupted Lead Time: **{test_lt} days**")
+  with col_r6:
+    st.markdown(
+        '<div class="custom-section-title">Stochastic Resilience'
+        " Simulation</div>",
+        unsafe_allow_html=True,
     )
-    rop_b = (s_mean * lt_b) + (z_score * s_std * np.sqrt(lt_b))
-    st.write(f"* Lead Time: **{lt_b} days**")
-    st.write(f"* Reorder Point (ROP): **{round(rop_b)} units**")
-
-    delta_rop = round(rop_b - rop_a)
-    st.warning(
-        f"💡 If lead time increases by {lt_b - baseline_lt} days, the Reorder"
-        f" Point must be adjusted upward by **{delta_rop} units** (at"
-        f" Z={z_score}) to mitigate stockout risks."
+    st.markdown(
+        '<div class="custom-section-desc">Simulate severe supply chain shocks'
+        " and lead time extensions. Test how safety thresholds dynamically"
+        " adjust under stress testing and risk exposure models.</div>",
+        unsafe_allow_html=True,
     )
