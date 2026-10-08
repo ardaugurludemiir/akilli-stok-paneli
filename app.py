@@ -169,10 +169,34 @@ with tab_analysis:
   col_l1, col_r1 = st.columns([1.1, 0.9], gap="large")
   with col_l1:
     st.markdown(
-        '<div class="custom-section-title">Granular SKU Evaluation & Decision'
-        " Matrix</div>",
+        '<div class="custom-section-title">Granular SKU Evaluation & Decision Matrix</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="custom-section-desc">Analyze individual stock keeping'
-        " units using rigorous stochastic demand
+        '<div class="custom-section-desc">Analyze individual stock keeping units using rigorous stochastic demand distributions and lead-time variances. Calculate exact safety stock requirements and automated reorder triggers.</div>',
+        unsafe_allow_html=True,
+    )
+    selected_item = st.selectbox(
+        "Select Item Code for Evaluation:", item_list, key="item_selector"
+    )
+  with col_r1:
+    with st.container(border=True):
+      st.markdown("### 📌 Live Status Preview")
+      st.error(
+          "🔴 **CRITICAL STOCKOUT RISK**\n\nStock has breached the calculated Reorder Point threshold."
+      )
+
+  st.markdown("---")
+  item_data = df[df["Urun_Kodu"] == selected_item]
+  mean_d = item_data["Satis_Miktari"].mean()
+  std_d = item_data["Satis_Miktari"].std()
+  lt = item_data["Tedarik_Suresi"].iloc[0]
+  stk = item_data["Mevcut_Stok"].iloc[-1]
+  s_stock = z_score * (std_d if not pd.isna(std_d) else 0) * np.sqrt(lt)
+  rop = (mean_d * lt) + s_stock
+
+  m1, m2, m3, m4 = st.columns(4)
+  m1.metric("Current Stock Level", f"{int(stk)} units")
+  m2.metric("Calculated Safety Stock", f"{round(s_stock)} units")
+  m3.metric("Reorder Point (ROP)", f"{round(rop)} units")
+  m4.metric("Estimated
