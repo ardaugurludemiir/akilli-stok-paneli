@@ -6,6 +6,91 @@ import io
 
 # --- 1. PAGE CONFIGURATION & ACADEMIC BRANDING ---
 st.set_page_config(
+
+
+    import streamlit as st
+
+# 1. Sayfa konfigürasyonu (kendi orijinal şık başlığınla)
+st.set_page_config(
+    page_title=(
+        "SmartStock — Enterprise Supply Chain & Inventory Decision Support"
+        " Platform"
+    ),
+    page_icon="📦",
+    layout="wide",
+)
+
+# 2. Şimdi bu hazırladığımız SaaS karşılama alanını yapıştırıyorsun:
+st.markdown(
+    """
+    <style>
+    .hero-title {
+        font-size: 3.2rem;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1.1;
+        margin-bottom: 20px;
+    }
+    .hero-subtitle {
+        font-size: 1.15rem;
+        color: #475569;
+        margin-bottom: 25px;
+    }
+    .feature-tag {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 700;
+        color: #7c3aed;
+        margin-bottom: 10px;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
+st.write("")
+st.write("")
+
+col_left, col_right = st.columns([1.1, 0.9], gap="large")
+
+with col_left:
+  st.markdown(
+      '<div class="feature-tag">Item-Level Analysis</div>', unsafe_allow_html=True
+  )
+  st.markdown(
+      '<div class="hero-title">Every SKU,<br>precisely evaluated.</div>',
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      """
+        <div class="hero-subtitle">
+        Granular stock tracking, dynamic safety stock calculations, and automated executive insights — 
+        so you know your exact risk exposure before a stockout happens.
+        </div>
+        """,
+      unsafe_allow_html=True,
+  )
+
+  st.markdown("✅ **Stochastic Demand Modeling** (Z-Score & Lead Time)")
+  st.markdown("✅ **Automated Stockout Risk Alerts** (Critical ROP Thresholds)")
+  st.markdown("✅ **Instant Executive Synthesis & Runway Estimation**")
+
+with col_right:
+  with st.container(border=True):
+    st.markdown("### 📦 **Decision Matrix: LAPTOP-X1**")
+    st.error(
+        "🔴 **CRITICAL STOCKOUT RISK**\n\nInventory has fallen below the"
+        " calculated Reorder Point (**105 units** at Z=1.65)."
+    )
+
+    kpi1, kpi2 = st.columns(2)
+    with kpi1:
+      st.metric(label="Current Stock", value="45 units")
+    with kpi2:
+      st.metric(label="Estimated Runway", value="~2.5 days")
+
+# --- BURADAN SONRA MEVCUT SEKME VE KODLARIN DEVAM EDEBİLİR ---
     page_title="SmartStock — Enterprise Supply Chain & Inventory Decision Support Platform",
     page_icon="📦",
     layout="wide"
