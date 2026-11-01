@@ -303,7 +303,7 @@
         <button class="cta-btn" style="padding: 16px 36px; font-size: 1.1rem;" onclick="openModal()">Platformu Keşfet & Başla</button>
     </section>
 
-    <!-- Features Section (Döviz Entegrasyonu Dahil Edildi) -->
+    <!-- Features Section -->
     <section class="features-section" id="features">
         <div class="section-header">
             <h2>Kritik Karar Destek Modülleri</h2>
@@ -337,7 +337,7 @@
         </div>
     </section>
 
-    <!-- Kayıt / Giriş Modal (Açılır Pencere) -->
+    <!-- Kayıt / Giriş Modal -->
     <div class="modal-overlay" id="authModal">
         <div class="modal-card">
             <button class="modal-close" onclick="closeModal()">&times;</button>
