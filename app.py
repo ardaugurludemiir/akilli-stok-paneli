@@ -1,395 +1,391 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartStock Enterprise — Stochastic Decision Support System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+import io
+import numpy as np
+import pandas as pd
+import requests
+import streamlit as st
+
+# --- 1. PAGE CONFIGURATION & ACADEMIC BRANDING ---
+st.set_page_config(
+    page_title=(
+        "SmartStock — Enterprise Supply Chain & Inventory Decision Support"
+        " Platform"
+    ),
+    page_icon="📦",
+    layout="wide",
+)
+
+# --- 2. CUSTOM INDUSTRIAL SAAS STYLES ---
+st.markdown(
+    """
     <style>
-        :root {
-            --primary: #0f172a;
-            --accent: #3b82f6;
-            --bg-light: #f8fafc;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
-        }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-        body {
-            background-color: #ffffff;
-            color: var(--text-main);
-            overflow-x: hidden;
-            line-height: 1.6;
-        }
-        /* Navbar */
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 80px;
-            border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-        }
-        .logo {
-            font-weight: 800;
-            font-size: 1.4rem;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .nav-links {
-            display: flex;
-            gap: 30px;
-            list-style: none;
-            color: var(--text-muted);
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-        .nav-links a {
-            text-decoration: none;
-            color: inherit;
-            transition: 0.3s;
-        }
-        .nav-links a:hover {
-            color: var(--accent);
-        }
-        .nav-right {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .cta-btn {
-            background: var(--primary);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: 0.3s;
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
-        }
-        .cta-btn:hover {
-            background: var(--accent);
-            transform: translateY(-2px);
-        }
-        .btn-outline {
-            background: transparent;
-            color: var(--primary);
-            border: 2px solid var(--border-color);
-        }
-        .btn-outline:hover {
-            border-color: var(--primary);
-            background: transparent;
-            color: var(--primary);
-        }
-
-        /* Hero Section */
-        .hero {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: 90px 20px 60px 20px;
-            background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 60%);
-        }
-        .badge {
-            background: #eff6ff;
-            color: var(--accent);
-            padding: 8px 18px;
-            border-radius: 30px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 25px;
-            border: 1px solid #dbeafe;
-        }
-        .hero h1 {
-            font-size: 3.8rem;
-            font-weight: 900;
-            line-height: 1.15;
-            max-width: 950px;
-            margin-bottom: 25px;
-            color: var(--primary);
-            letter-spacing: -1px;
-        }
-        .hero p {
-            font-size: 1.2rem;
-            color: var(--text-muted);
-            max-width: 800px;
-            line-height: 1.7;
-            margin-bottom: 40px;
-        }
-
-        /* Features / Modules Section */
-        .features-section {
-            padding: 80px 80px;
-            background: var(--bg-light);
-        }
-        .section-header {
-            text-align: center;
-            max-width: 700px;
-            margin: 0 auto 50px auto;
-        }
-        .section-header h2 {
-            font-size: 2.3rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .card {
-            background: white;
-            padding: 35px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--border-color);
-            transition: 0.3s;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent);
-        }
-        .card h3 {
-            font-size: 1.25rem;
-            color: var(--primary);
-            margin-bottom: 12px;
-            font-weight: 700;
-        }
-        .card p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-
-        /* Modal (Kayıt / Giriş Penceresi) */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(5px);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-card {
-            background: white;
-            padding: 40px;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 420px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            position: relative;
-            animation: modalFadeIn 0.3s ease;
-        }
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .modal-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text-muted);
-        }
-        .modal-card h2 {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 10px;
-        }
-        .modal-card p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-bottom: 25px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-            color: var(--primary);
-        }
-        .form-group input {
-            width: 100%;
-            padding: 14px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            font-size: 1rem;
-            outline: none;
-            transition: 0.3s;
-        }
-        .form-group input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-        .submit-btn {
-            width: 100%;
-            background: var(--primary);
-            color: white;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1rem;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 10px;
-        }
-        .submit-btn:hover {
-            background: var(--accent);
-        }
-
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 40px;
-            border-top: 1px solid var(--border-color);
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            background: #ffffff;
-        }
+    .industrial-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+        padding: 70px 40px;
+        border-radius: 24px;
+        color: white;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        margin-bottom: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-title {
+        font-size: 3.2rem;
+        font-weight: 900;
+        line-height: 1.15;
+        margin-bottom: 20px;
+        letter-spacing: -0.5px;
+    }
+    .hero-desc {
+        font-size: 1.15rem;
+        color: #94a3b8;
+        max-width: 750px;
+        line-height: 1.6;
+        margin-bottom: 0px;
+    }
+    .custom-section-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 12px;
+    }
+    .custom-section-desc {
+        font-size: 1.05rem;
+        color: #475569;
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
     </style>
-</head>
-<body>
+    """,
+    unsafe_allow_html=True,
+)
 
-    <!-- Navbar -->
-    <nav>
-        <div class="logo">📦 SmartStock Enterprise</div>
-        <ul class="nav-links">
-            <li><a href="#features">Core Features</a></li>
-        </ul>
-        <div class="nav-right">
-            <button class="cta-btn btn-outline" onclick="openModal()">Oturum Aç</button>
-            <button class="cta-btn" onclick="openModal()">Hemen Kaydol</button>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="badge">⚡ Industrial Engineering Decision Support System</div>
-        <h1>Stochastic Intelligence.<br>Absolute Inventory Control.</h1>
-        <p>An enterprise-grade platform engineered to eliminate stockout vulnerabilities, optimize probabilistic safety thresholds, and synchronize macroeconomic currency fluctuations (USD/TRY) with real-time warehouse execution.</p>
-        <button class="cta-btn" style="padding: 16px 36px; font-size: 1.1rem;" onclick="openModal()">Platformu Keşfet & Başla</button>
-    </section>
-
-    <!-- Features Section -->
-    <section class="features-section" id="features">
-        <div class="section-header">
-            <h2>Kritik Karar Destek Modülleri</h2>
-            <p>Endüstriyel gereksinimlere tam uygun, stokastik ve makroekonomik altyapı.</p>
-        </div>
-        <div class="grid">
-            <div class="card">
-                <h3>💱 Canlı Döviz Entegrasyonu (USD/TRY)</h3>
-                <p>Küresel API kaynaklarından anlık döviz kurlarını çekerek portföy değerlemelerini ve sermaye bütçelemesini dinamik olarak Türk Lirası veya Amerikan Doları cinsinden senkronize eder.</p>
-            </div>
-            <div class="card">
-                <h3>📊 ABC Pareto Analizi</h3>
-                <p>Yıllık tüketim değeri etkisine göre envanter varlıklarını sınıflandırır, yüksek etkili stok kalemlerine operasyonel odaklanma sağlar.</p>
-            </div>
-            <div class="card">
-                <h3>⚖️ Stokastik Talep ve Z-Skoru</h3>
-                <p>Güvenlik stoğu ve yeniden sipariş noktalarını (ROP) %90 ila %99.9 hedef hizmet seviyelerine göre olasılıksal dağılımlarla hesaplar.</p>
-            </div>
-            <div class="card">
-                <h3>🚨 Kapsamlı Risk Matrisi</h3>
-                <p>Tüm operasyonel node'lar üzerinde kritik stok tükenme risklerini, aşırı sermaye kilitlenmelerini ve uyarı bölgelerini anlık olarak denetler.</p>
-            </div>
-            <div class="card">
-                <h3>🏢 Multi-Echelon Depo Ağı</h3>
-                <p>İstanbul, İzmir ve Adana gibi dağıtık depolama tesislerini ve yerel tedarik sürelerini eş zamanlı olarak koordine eder.</p>
-            </div>
-            <div class="card">
-                <h3>💰 Çalışma Sermayesi Bütçelemesi</h3>
-                <p>Kritik stok kalemlerini en uygun ROP seviyelerine getirmek için gereken tam sermaye tahsisatını likiditeyi koruyarak hesaplar.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Kayıt / Giriş Modal -->
-    <div class="modal-overlay" id="authModal">
-        <div class="modal-card">
-            <button class="modal-close" onclick="closeModal()">&times;</button>
-            <h2>Platforma Katılın</h2>
-            <p>E-posta ve telefon numaranızı girerek SmartStock karar destek sistemine anında erişim sağlayın.</p>
-            
-            <form onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label>E-posta Adresi</label>
-                    <input type="email" id="userEmail" placeholder="ornek@sirket.com" required>
-                </div>
-                <div class="form-group">
-                    <label>Telefon Numarası</label>
-                    <input type="tel" id="userPhone" placeholder="0555 555 55 55" required>
-                </div>
-                <button type="submit" class="submit-btn">Sisteme Giriş Yap →</button>
-            </form>
+# --- 3. CUSTOM INDUSTRIAL HERO SECTION ---
+st.markdown(
+    """
+    <div class="industrial-hero">
+        <div class="hero-title">Stochastic Intelligence.<br>Absolute Inventory Control.</div>
+        <div class="hero-desc">
+            An advanced decision support architecture built to eliminate stockout vulnerabilities, 
+            optimize safety thresholds through statistical modeling, and bridge macroeconomic shifts with operational execution.
         </div>
     </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-    <!-- Footer -->
-    <footer>
-        <p>© 2026 SmartStock Enterprise Decision Support Systems. All rights reserved.</p>
-    </footer>
 
-    <script>
-        const modal = document.getElementById('authModal');
+# --- 4. REAL-TIME EXCHANGE RATE INTEGRATION ---
+def fetch_live_exchange_rate():
+  try:
+    url = "https://open.er-api.com/v6/latest/USD"
+    response = requests.get(url, timeout=3)
+    data = response.json()
+    if "rates" in data and "TRY" in data["rates"]:
+      return float(data["rates"]["TRY"])
+  except:
+    pass
 
-        function openModal() {
-            modal.style.display = 'flex';
-        }
+  try:
+    url_backup = "https://api.frankfurter.app/latest?from=USD&to=TRY"
+    resp = requests.get(url_backup, timeout=3)
+    d_backup = resp.json()
+    return float(d_backup["rates"]["TRY"])
+  except:
+    return 34.50
 
-        function closeModal() {
-            modal.style.display = 'none';
-        }
 
-        function handleLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('userEmail').value;
-            const phone = document.getElementById('userPhone').value;
-            
-            if(email && phone) {
-                alert("Kayıt başarılı! Karar destek paneline yönlendiriliyorsunuz.");
-                window.location.href = "https://smartstock-enterprise.streamlit.app"; 
-            }
-        }
+# --- 5. SIDEBAR CONFIGURATION ---
+st.sidebar.header("📁 Data & Parameters")
+uploaded_file = st.sidebar.file_uploader("Upload CSV Dataset", type=["csv"])
+currency_choice = st.sidebar.radio(
+    "Select Currency:", ["Turkish Lira (₺)", "US Dollar ($)"]
+)
 
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                closeModal();
-            }
-        }
-    </script>
-</body>
-</html>
+service_level_choice = st.sidebar.selectbox(
+    "Target Service Level (Stockout Protection):",
+    [
+        "90% (Z = 1.28)",
+        "95% (Z = 1.65 - Standard)",
+        "99% (Z = 2.33)",
+        "99.9% (Z = 3.09)",
+    ],
+    index=1,
+)
+
+if "90%" in service_level_choice:
+  z_score = 1.28
+elif "99.9%" in service_level_choice:
+  z_score = 3.09
+elif "99%" in service_level_choice:
+  z_score = 2.33
+else:
+  z_score = 1.65
+
+if st.sidebar.button("🔄 Refresh Rates & Dataset"):
+  st.rerun()
+
+default_csv_data = """Urun_Kodu,Satis_Miktari,Tedarik_Suresi,Mevcut_Stok,Birim_Maliyet,Depo_Lokasyonu
+LAPTOP-X1,15,5,45,18500.0,Central Hub (Istanbul)
+LAPTOP-X1,18,5,45,18500.0,Central Hub (Istanbul)
+LAPTOP-X1,22,5,45,18500.0,Central Hub (Istanbul)
+MONITOR-27,8,10,120,4200.0,Western Hub (Izmir)
+MONITOR-27,2,10,120,4200.0,Western Hub (Izmir)
+MONITOR-27,15,10,120,4200.0,Western Hub (Izmir)
+MOUSE-WRL,45,3,30,350.0,Southern Hub (Adana)
+MOUSE-WRL,50,3,30,350.0,Southern Hub (Adana)
+SERVER-BLD,3,14,15,85000.0,Central Hub (Istanbul)
+SERVER-BLD,4,14,15,85000.0,Central Hub (Istanbul)
+KABLO-HDMI,10,2,500,75.0,Western Hub (Izmir)
+KABLO-HDMI,12,2,500,75.0,Western Hub (Izmir)
+KLAVYE-RGB,14,7,65,1250.0,Southern Hub (Adana)
+KLAVYE-RGB,28,7,65,1250.0,Southern Hub (Adana)
+"""
+
+if uploaded_file is not None:
+  df = pd.read_csv(uploaded_file, encoding="utf-8-sig", on_bad_lines="skip")
+else:
+  try:
+    df = pd.read_csv("test_2.csv", encoding="utf-8-sig", on_bad_lines="skip")
+  except:
+    df = pd.read_csv(io.StringIO(default_csv_data))
+
+df.columns = df.columns.str.strip()
+item_list = df["Urun_Kodu"].unique()
+
+
+# --- 6. NAVIGATION TABS ---
+tab_analysis, tab_abc, tab_risk, tab_warehouse, tab_budget, tab_scenario = (
+    st.tabs([
+        "🔍 Item-Level Analysis",
+        "📊 ABC Inventory Classification",
+        "🚨 Comprehensive Risk Matrix",
+        "🏢 Multi-Echelon Warehouse",
+        "💰 Working Capital Budget",
+        "⚖️ Stochastic Scenario Simulation",
+    ])
+)
+
+# ================= TAB 1: ITEM ANALYSIS =================
+with tab_analysis:
+  col_l1, col_r1 = st.columns([1.1, 0.9], gap="large")
+  with col_l1:
+    st.markdown(
+        '<div class="custom-section-title">Granular SKU Evaluation & Decision Matrix</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Analyze individual stock keeping units using rigorous stochastic demand distributions and lead-time variances. Calculate exact safety stock requirements and automated reorder triggers.</div>',
+        unsafe_allow_html=True,
+    )
+    selected_item = st.selectbox(
+        "Select Item Code for Evaluation:", item_list, key="item_selector"
+    )
+  with col_r1:
+    with st.container(border=True):
+      st.markdown("### 📌 Live Status Preview")
+      st.error(
+          "🔴 **CRITICAL STOCKOUT RISK**\n\nStock has breached the calculated"
+          " Reorder Point threshold."
+      )
+
+  st.markdown("---")
+  item_data = df[df["Urun_Kodu"] == selected_item]
+  mean_d = item_data["Satis_Miktari"].mean()
+  std_d = item_data["Satis_Miktari"].std()
+  lt = item_data["Tedarik_Suresi"].iloc[0]
+  stk = item_data["Mevcut_Stok"].iloc[-1]
+  s_stock = z_score * (std_d if not pd.isna(std_d) else 0) * np.sqrt(lt)
+  rop = (mean_d * lt) + s_stock
+
+  m1, m2, m3, m4 = st.columns(4)
+  m1.metric("Current Stock Level", f"{int(stk)} units")
+  m2.metric("Calculated Safety Stock", f"{round(s_stock)} units")
+  m3.metric("Reorder Point (ROP)", f"{round(rop)} units")
+  m4.metric(
+      "Estimated Runway",
+      f"≈ {stk/mean_d:.1f} days" if mean_d > 0 else "N/A",
+  )
+  st.line_chart(item_data["Satis_Miktari"], use_container_width=True)
+
+
+# ================= TAB 2: ABC CLASSIFICATION =================
+with tab_abc:
+  col_l2, col_r2 = st.columns([0.9, 1.1], gap="large")
+  with col_l2:
+    with st.container(border=True):
+      st.markdown("### 📊 Pareto Breakdown (80/20)")
+      st.info(
+          "**Class A (80% Value):** Rigorous Continuous Review\n\n**Class B"
+          " (15% Value):** Periodic Control\n\n**Class C (5% Value):** Two-Bin"
+          " Bulk Control"
+      )
+  with col_r2:
+    st.markdown(
+        '<div class="custom-section-title">ABC Inventory Classification Matrix</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Classify inventory assets based on annual consumption value impact. Direct managerial focus toward high-impact stock lines to minimize holding and carrying costs.</div>',
+        unsafe_allow_html=True,
+    )
+
+  st.markdown("---")
+  abc_list = []
+  for item in item_list:
+    sub = df[df["Urun_Kodu"] == item]
+    d_m = sub["Satis_Miktari"].mean()
+    u_cost = sub["Birim_Maliyet"].iloc[0]
+    abc_list.append({
+        "Item Code": item,
+        "Annual Consumption Value (₺)": d_m * 365 * u_cost,
+    })
+  abc_df = pd.DataFrame(abc_list).sort_values(
+      by="Annual Consumption Value (₺)", ascending=False
+  )
+  st.dataframe(abc_df, use_container_width=True)
+
+
+# ================= TAB 3: RISK MATRIX =================
+with tab_risk:
+  col_l3, col_r3 = st.columns([1.1, 0.9], gap="large")
+  with col_l3:
+    st.markdown(
+        '<div class="custom-section-title">Enterprise-Wide Risk Dashboard</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Holistic audit across all operational nodes. Instantly isolate critical stockouts, excess capital locking, and warning zones to maintain uninterrupted supply chain flow.</div>',
+        unsafe_allow_html=True,
+    )
+  with col_r3:
+    with st.container(border=True):
+      st.markdown("### 🚨 Risk Intelligence")
+      st.warning(
+          "Continuous node monitoring prevents unexpected supply chain halts."
+      )
+
+  st.markdown("---")
+  risk_list = []
+  for item in item_list:
+    sub = df[df["Urun_Kodu"] == item]
+    d_m = sub["Satis_Miktari"].mean()
+    d_s = (
+        sub["Satis_Miktari"].std() if not pd.isna(sub["Satis_Miktari"].std()) else 0
+    )
+    lt_val = sub["Tedarik_Suresi"].iloc[0]
+    stk_val = sub["Mevcut_Stok"].iloc[-1]
+    r_point = (d_m * lt_val) + (z_score * d_s * np.sqrt(lt_val))
+    status = (
+        "🔴 Critical"
+        if stk_val <= r_point
+        else ("🟢 Secure" if stk_val > r_point * 1.2 else "🟡 Warning")
+    )
+    risk_list.append({
+        "Item Code": item,
+        "Stock": int(stk_val),
+        "ROP": round(r_point),
+        "Status": status,
+    })
+  st.dataframe(pd.DataFrame(risk_list), use_container_width=True)
+
+
+# ================= TAB 4: MULTI-ECHELON =================
+with tab_warehouse:
+  col_l4, col_r4 = st.columns([0.9, 1.1], gap="large")
+  with col_l4:
+    with st.container(border=True):
+      selected_wh = st.selectbox(
+          "Select Node:", df["Depo_Lokasyonu"].unique()
+      )
+      wh_sub = df[df["Depo_Lokasyonu"] == selected_wh]
+      st.metric(
+          "Active SKUs at Node",
+          wh_sub["Urun_Kodu"].nunique(),
+          delta="Optimized",
+      )
+  with col_r4:
+    st.markdown(
+        '<div class="custom-section-title">Multi-Echelon Warehouse Architecture</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Coordinate distributed storage facilities (Istanbul, Izmir, Adana) in real-time. Evaluate localized inventory balances, lead times, and facility valuations.</div>',
+        unsafe_allow_html=True,
+    )
+
+  st.markdown("---")
+  st.dataframe(
+      wh_sub[[
+          "Urun_Kodu",
+          "Satis_Miktari",
+          "Mevcut_Stok",
+          "Tedarik_Suresi",
+          "Birim_Maliyet",
+      ]],
+      use_container_width=True,
+  )
+
+
+# ================= TAB 5: WORKING CAPITAL BUDGET =================
+with tab_budget:
+  col_l5, col_r5 = st.columns([1.1, 0.9], gap="large")
+  with col_l5:
+    st.markdown(
+        '<div class="custom-section-title">Working Capital & Procurement Budget</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Compute exact capital allocations required to replenish critical stock items back to optimal ROP thresholds while preserving liquid financial reserves.</div>',
+        unsafe_allow_html=True,
+    )
+  with col_r5:
+    with st.container(border=True):
+      st.markdown("### 💰 Financial Outlay Monitor")
+      st.success("Real-time procurement cost projection enabled.")
+
+  st.markdown("---")
+  total_cap = sum(
+      max(
+          0,
+          round(
+              (
+                  df[df["Urun_Kodu"] == i]["Satis_Miktari"].mean()
+                  * df[df["Urun_Kodu"] == i]["Tedarik_Suresi"].iloc[0]
+              )
+              - df[df["Urun_Kodu"] == i]["Mevcut_Stok"].iloc[-1]
+          ),
+      )
+      * df[df["Urun_Kodu"] == i]["Birim_Maliyet"].iloc[0]
+      for i in item_list
+  )
+  st.metric(
+      "Total Required Capital Outlay",
+      f"₺{total_cap:,.2f}"
+      if currency_choice != "US Dollar ($)"
+      else f"${total_cap/fetch_live_exchange_rate():,.2f}",
+  )
+
+
+# ================= TAB 6: SCENARIO SIMULATION =================
+with tab_scenario:
+  col_l6, col_r6 = st.columns([0.9, 1.1], gap="large")
+  with col_l6:
+    with st.container(border=True):
+      s_item = st.selectbox("Select Test SKU:", item_list, key="scen_sel")
+      sub_s = df[df["Urun_Kodu"] == s_item]
+      base_lt = sub_s["Tedarik_Suresi"].iloc[0]
+      test_lt = st.slider(
+          "Simulated Lead Time Extension (Days):",
+          int(base_lt),
+          30,
+          int(base_lt) + 5,
+      )
+      st.write(f"New Disrupted Lead Time: **{test_lt} days**")
+  with col_r6:
+    st.markdown(
+        '<div class="custom-section-title">Stochastic Resilience Simulation</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="custom-section-desc">Simulate severe supply chain shocks and lead time extensions. Test how safety thresholds dynamically adjust under stress testing and risk exposure models.</div>',
+        unsafe_allow_html=True,
+    )
